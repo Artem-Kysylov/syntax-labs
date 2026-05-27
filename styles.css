@@ -534,6 +534,58 @@ button { cursor: pointer; font-family: inherit; }
   );
 }
 
+/* ============================================================
+   MOBILE SCROLL-DRIVEN GLOW (.in-view replaces :hover on touch)
+   ============================================================ */
+
+@media (max-width: 768px) {
+  .bento-card {
+    transition: border-color 0.4s ease,
+                box-shadow 0.4s ease,
+                transform var(--transition-base);
+  }
+
+  .bento-card.spendly.in-view {
+    border-color: rgba(var(--color-spendly-rgb), 0.4);
+    box-shadow: 0 0 32px rgba(var(--color-spendly-rgb), 0.12),
+                0 0 8px  rgba(var(--color-spendly-rgb), 0.08);
+  }
+
+  .bento-card.spendly.in-view::before      { opacity: 1; }
+
+  .bento-card.docstamp.in-view {
+    border-color: rgba(var(--color-docstamp-rgb), 0.4);
+    box-shadow: 0 0 32px rgba(var(--color-docstamp-rgb), 0.12),
+                0 0 8px  rgba(var(--color-docstamp-rgb), 0.08);
+  }
+
+  .bento-card.docstamp.in-view::before     { opacity: 1; }
+
+  .bento-card.tablemask.in-view {
+    border-color: rgba(var(--color-tablemask-rgb), 0.4);
+    box-shadow: 0 0 32px rgba(var(--color-tablemask-rgb), 0.12),
+                0 0 8px  rgba(var(--color-tablemask-rgb), 0.08);
+  }
+
+  .bento-card.tablemask.in-view::before    { opacity: 1; }
+
+  .bento-card.datasplitter.in-view {
+    border-color: rgba(var(--color-datasplitter-rgb), 0.4);
+    box-shadow: 0 0 32px rgba(var(--color-datasplitter-rgb), 0.12),
+                0 0 8px  rgba(var(--color-datasplitter-rgb), 0.08);
+  }
+
+  .bento-card.datasplitter.in-view::before { opacity: 1; }
+
+  .bento-card.tablexport.in-view {
+    border-color: rgba(var(--color-tablexport-rgb), 0.4);
+    box-shadow: 0 0 32px rgba(var(--color-tablexport-rgb), 0.12),
+                0 0 8px  rgba(var(--color-tablexport-rgb), 0.08);
+  }
+
+  .bento-card.tablexport.in-view::before   { opacity: 1; }
+}
+
 /* Card tag / category label */
 .card-tag {
   display:      inline-flex;
@@ -874,8 +926,13 @@ button { cursor: pointer; font-family: inherit; }
    ============================================================ */
 
 @media (max-width: 1024px) {
+  :root {
+    --container-pad: 2rem;
+  }
+
   .bento-grid {
     grid-template-columns: repeat(6, 1fr);
+    gap: var(--space-4);
   }
 
   .bento-card--1 { grid-column: 1 / 7; grid-row: 1; }
@@ -884,10 +941,18 @@ button { cursor: pointer; font-family: inherit; }
   .bento-card--4 { grid-column: 1 / 4; grid-row: 3; }
   .bento-card--5 { grid-column: 4 / 7; grid-row: 3; }
 
+  .bento-card {
+    padding: var(--space-6);
+  }
+
   .bento-card--featured { min-height: 320px; }
 
   .values-grid {
     grid-template-columns: repeat(2, 1fr);
+  }
+
+  .value-item {
+    padding: var(--space-8) var(--space-6);
   }
 }
 
@@ -896,8 +961,37 @@ button { cursor: pointer; font-family: inherit; }
    ============================================================ */
 
 @media (max-width: 640px) {
+  /* Container padding adjustment */
+  :root {
+    --container-pad: 1rem;
+  }
+
+  /* Header adjustments */
+  .site-header {
+    padding-block: var(--space-4);
+  }
+
+  .site-nav .nav-link span {
+    display: none;
+  }
+
+  .logo__wordmark {
+    font-size: var(--text-sm);
+  }
+
+  /* Hero section */
   .hero {
-    padding-block: var(--space-20) var(--space-16);
+    padding-block: var(--space-16) var(--space-12);
+  }
+
+  .hero__eyebrow {
+    font-size: 0.6875rem;
+    padding: var(--space-1) var(--space-2);
+    margin-bottom: var(--space-6);
+  }
+
+  .hero__subheading {
+    margin-bottom: var(--space-8);
   }
 
   .hero__actions {
@@ -905,19 +999,28 @@ button { cursor: pointer; font-family: inherit; }
     align-items:    stretch;
     width:          100%;
     max-width:      100%;
+    gap:            var(--space-3);
   }
 
   .hero__actions .btn {
     width:           100%;
     justify-content: center;
+    padding:         var(--space-4) var(--space-6);
+    font-size:       var(--text-base-size);
   }
 
-  .site-nav .nav-link span {
-    display: none;
+  /* Bento grid */
+  .bento-section {
+    padding-block: var(--space-16);
+  }
+
+  .bento-section__heading {
+    margin-bottom: var(--space-8);
   }
 
   .bento-grid {
     grid-template-columns: 1fr;
+    gap: var(--space-4);
   }
 
   .bento-card--1,
@@ -929,10 +1032,72 @@ button { cursor: pointer; font-family: inherit; }
     grid-row:    auto;
   }
 
-  .bento-card--featured { min-height: auto; }
+  .bento-card {
+    padding: var(--space-6);
+  }
+
+  .bento-card--featured { 
+    min-height: auto;
+  }
+
+  .card-title {
+    font-size: var(--text-lg);
+    margin-bottom: var(--space-3);
+  }
+
+  .card-desc {
+    font-size: var(--text-sm);
+    margin-bottom: var(--space-5);
+  }
+
+  .badge {
+    font-size: 0.6875rem;
+    padding: 2px var(--space-2);
+    margin-bottom: var(--space-4);
+  }
+
+  .btn {
+    font-size: var(--text-sm);
+    padding: var(--space-3) var(--space-5);
+  }
+
+  /* Values section */
+  .values-section {
+    padding-block: var(--space-16);
+  }
+
+  .values-section__heading {
+    margin-bottom: var(--space-8);
+  }
 
   .values-grid {
     grid-template-columns: 1fr;
+    gap: 1px;
+  }
+
+  .value-item {
+    padding: var(--space-8) var(--space-6);
+  }
+
+  .value-icon {
+    width: 36px;
+    height: 36px;
+    margin-bottom: var(--space-4);
+  }
+
+  .value-icon svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  .value-title {
+    font-size: var(--text-base-size);
+    margin-bottom: var(--space-2);
+  }
+
+  /* Footer */
+  .site-footer {
+    padding-block: var(--space-8);
   }
 
   .site-footer .container {
@@ -940,7 +1105,7 @@ button { cursor: pointer; font-family: inherit; }
     align-items:    center;
     justify-content: center;
     text-align:     center;
-    gap:            var(--space-6);
+    gap:            var(--space-4);
   }
 
   .footer-left {
@@ -953,6 +1118,10 @@ button { cursor: pointer; font-family: inherit; }
     flex-direction: column;
     align-items:    center;
     gap:            var(--space-1);
+  }
+
+  .footer-link {
+    padding: var(--space-2) var(--space-3);
   }
 }
 
