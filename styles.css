@@ -21,6 +21,18 @@
   --accent:         #FFFFFF;
   --accent-glow:    rgba(255, 255, 255, 0.07);
 
+  /* Product Colors */
+  --color-spendly:        #5B6CFF;
+  --color-spendly-rgb:    91, 108, 255;
+  --color-tablexport:     #1B9358;
+  --color-tablexport-rgb: 27, 147, 88;
+  --color-docstamp:       #12B981;
+  --color-docstamp-rgb:   18, 185, 129;
+  --color-datasplitter:   #0B84FF;
+  --color-datasplitter-rgb: 11, 132, 255;
+  --color-tablemask:      #A4E636;
+  --color-tablemask-rgb:  164, 230, 54;
+
   /* Typography */
   --font-sans:      'Inter', sans-serif;
 
@@ -405,7 +417,8 @@ button { cursor: pointer; font-family: inherit; }
   padding:          var(--space-8);
   overflow:         hidden;
   transition:       border-color var(--transition-base),
-                    transform var(--transition-base);
+                    transform var(--transition-base),
+                    box-shadow var(--transition-base);
 }
 
 /* Radial glow on hover — tracks mouse via CSS custom props */
@@ -436,6 +449,90 @@ button { cursor: pointer; font-family: inherit; }
 
 /* All direct content above the pseudo-element */
 .bento-card > * { position: relative; z-index: 1; }
+
+/* ============================================================
+   PRODUCT-SPECIFIC HOVER EFFECTS
+   ============================================================ */
+
+/* Spendly — Indigo */
+.bento-card.spendly:hover {
+  border-color: rgba(var(--color-spendly-rgb), 0.4);
+  box-shadow: 0 0 32px rgba(var(--color-spendly-rgb), 0.12),
+              0 0 8px rgba(var(--color-spendly-rgb), 0.08);
+}
+
+.bento-card.spendly::before {
+  background: radial-gradient(
+    400px circle at var(--mouse-x, 50%) var(--mouse-y, 50%),
+    rgba(var(--color-spendly-rgb), 0.08) 0%,
+    rgba(var(--color-spendly-rgb), 0.04) 40%,
+    transparent 70%
+  );
+}
+
+/* DocStamp — Teal/Mint */
+.bento-card.docstamp:hover {
+  border-color: rgba(var(--color-docstamp-rgb), 0.4);
+  box-shadow: 0 0 32px rgba(var(--color-docstamp-rgb), 0.12),
+              0 0 8px rgba(var(--color-docstamp-rgb), 0.08);
+}
+
+.bento-card.docstamp::before {
+  background: radial-gradient(
+    400px circle at var(--mouse-x, 50%) var(--mouse-y, 50%),
+    rgba(var(--color-docstamp-rgb), 0.08) 0%,
+    rgba(var(--color-docstamp-rgb), 0.04) 40%,
+    transparent 70%
+  );
+}
+
+/* TableMask — Lime Green */
+.bento-card.tablemask:hover {
+  border-color: rgba(var(--color-tablemask-rgb), 0.4);
+  box-shadow: 0 0 32px rgba(var(--color-tablemask-rgb), 0.12),
+              0 0 8px rgba(var(--color-tablemask-rgb), 0.08);
+}
+
+.bento-card.tablemask::before {
+  background: radial-gradient(
+    400px circle at var(--mouse-x, 50%) var(--mouse-y, 50%),
+    rgba(var(--color-tablemask-rgb), 0.08) 0%,
+    rgba(var(--color-tablemask-rgb), 0.04) 40%,
+    transparent 70%
+  );
+}
+
+/* DataSplitter — Light Blue */
+.bento-card.datasplitter:hover {
+  border-color: rgba(var(--color-datasplitter-rgb), 0.4);
+  box-shadow: 0 0 32px rgba(var(--color-datasplitter-rgb), 0.12),
+              0 0 8px rgba(var(--color-datasplitter-rgb), 0.08);
+}
+
+.bento-card.datasplitter::before {
+  background: radial-gradient(
+    400px circle at var(--mouse-x, 50%) var(--mouse-y, 50%),
+    rgba(var(--color-datasplitter-rgb), 0.08) 0%,
+    rgba(var(--color-datasplitter-rgb), 0.04) 40%,
+    transparent 70%
+  );
+}
+
+/* TableXport — Emerald Green */
+.bento-card.tablexport:hover {
+  border-color: rgba(var(--color-tablexport-rgb), 0.4);
+  box-shadow: 0 0 32px rgba(var(--color-tablexport-rgb), 0.12),
+              0 0 8px rgba(var(--color-tablexport-rgb), 0.08);
+}
+
+.bento-card.tablexport::before {
+  background: radial-gradient(
+    400px circle at var(--mouse-x, 50%) var(--mouse-y, 50%),
+    rgba(var(--color-tablexport-rgb), 0.08) 0%,
+    rgba(var(--color-tablexport-rgb), 0.04) 40%,
+    transparent 70%
+  );
+}
 
 /* Card tag / category label */
 .card-tag {
