@@ -160,18 +160,11 @@ button { cursor: pointer; font-family: inherit; }
 
 .logo:hover { opacity: 0.75; }
 
-.logo__mark {
-  width:  28px;
-  height: 28px;
+.logo__image {
+  display:     block;
+  height:      19px;
+  width:       auto;
   flex-shrink: 0;
-}
-
-.logo__wordmark {
-  font-size:   var(--text-base-size);
-  font-weight: var(--weight-semibold);
-  color:       var(--text-heading);
-  letter-spacing: -0.02em;
-  white-space: nowrap;
 }
 
 /* Nav */
@@ -867,10 +860,9 @@ button { cursor: pointer; font-family: inherit; }
 }
 
 .footer-logo {
-  font-size:   var(--text-sm);
-  font-weight: var(--weight-semibold);
-  color:       var(--text-heading);
-  letter-spacing: -0.01em;
+  display: block;
+  height:  15px;
+  width:   auto;
 }
 
 .footer-copy {
@@ -975,8 +967,8 @@ button { cursor: pointer; font-family: inherit; }
     display: none;
   }
 
-  .logo__wordmark {
-    font-size: var(--text-sm);
+  .logo__image {
+    height: 16px;
   }
 
   /* Hero section */
