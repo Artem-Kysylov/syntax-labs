@@ -1379,3 +1379,54 @@ button { cursor: pointer; font-family: inherit; }
 .legal-footer a:hover {
   color: var(--text-bright);
 }
+
+/* ============================================================
+   SYNTAX LABS — NEW UNIFORM 2x2 GRID RESET
+   ============================================================ */
+
+/* 1. Превращаем сетку в строгий 2-колонный ряд */
+.bento-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr) !important;
+  gap: 24px !important; /* Расстояние между карточками */
+  grid-template-rows: auto !important;
+}
+
+/* 2. Сбрасываем все старые растягивания (спены) для карточек */
+.bento-card,
+.bento-card--2,
+.bento-card--3,
+.bento-card--4,
+.bento-card--6,
+.docstamp,
+.tablemask,
+.datasplitter,
+.sigfix {
+  grid-column: span 1 !important;
+  grid-row: span 1 !important;
+  min-height: 320px !important; /* Одинаковая базовая высота для симметрии */
+  height: 100% !important;
+  
+  /* Делаем внутренности флексом, чтобы кнопки всегда были ровно внизу */
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: space-between !important;
+}
+
+/* Убедимся, что контент внутри карточки распределяется красиво */
+.bento-card .card-desc {
+  flex-grow: 1; /* Описание займет всё свободное место, толкая футер вниз */
+  margin-bottom: 24px;
+}
+
+/* 3. Адаптив: на мобилках перестраиваем в 1 колонку */
+@media (max-width: 768px) {
+  .bento-grid {
+    grid-template-columns: 1fr !important;
+    gap: 16px !important;
+  }
+  
+  .bento-card {
+    min-height: auto !important;
+  }
+}
