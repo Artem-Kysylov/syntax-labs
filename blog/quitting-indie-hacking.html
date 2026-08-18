@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <meta name="description" content="A candid reflection on spending a year building micro-SaaS, hitting $0 MRR, dealing with founder burnout, and pivoting Syntax Labs toward Cybersecurity and Python automation." />
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml" />
+
+  <meta property="og:type" content="article" />
+  <meta property="og:url" content="https://syntaxlabsapp.com/blog/quitting-indie-hacking.html" />
+  <meta property="og:title" content="Why I’m Officially Stepping Away From Indie Hacking — Syntax Labs" />
+  <meta property="og:description" content="A candid reflection on $0 MRR, creator burnout, and why standalone micro-utility apps became obsolete overnight in the age of LLMs." />
+  <meta property="og:image" content="https://syntaxlabsapp.com/open-graph.png" />
+
+  <title>Why I’m Officially Stepping Away From Indie Hacking — Syntax Labs</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="../styles.css" />
+</head>
+
+<body>
+
+ <!-- ============================================================
+       HEADER
+       ============================================================ -->
+  <header class="site-header" role="banner">
+    <div class="container">
+
+      <!-- Logo -->
+      <a href="/" class="logo" aria-label="Syntax Labs — home">
+        <img src="/logo/logo.svg" alt="" class="logo__image" width="171" height="19" />
+      </a>
+
+      <!-- Navigation -->
+      <nav class="site-nav" role="navigation" aria-label="Primary navigation">
+
+        <!-- Twitter / X -->
+        <a
+          href="https://x.com/tabXport"
+          class="nav-link"
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Follow us on X (Twitter)"
+        >
+          <svg viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.741l7.73-8.835L1.254 2.25H8.08l4.265 5.638 5.9-5.638Zm-1.161 17.52h1.833L7.084 4.126H5.117L17.083 19.77Z"/>
+          </svg>
+          <span>Twitter</span>
+        </a>
+
+        <!-- YouTube -->
+        <a
+          href="https://www.youtube.com/@Artem_AlwaysBuilding"
+          class="nav-link"
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Watch us on YouTube"
+        >
+          <svg viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <path d="M23.495 6.205a3.007 3.007 0 0 0-2.088-2.088c-1.87-.501-9.396-.501-9.396-.501s-7.507-.01-9.396.501A3.007 3.007 0 0 0 .527 6.205a31.247 31.247 0 0 0-.522 5.805 31.247 31.247 0 0 0 .522 5.783 3.007 3.007 0 0 0 2.088 2.088c1.868.502 9.396.502 9.396.502s7.506 0 9.396-.502a3.007 3.007 0 0 0 2.088-2.088 31.247 31.247 0 0 0 .5-5.783 31.247 31.247 0 0 0-.5-5.805zM9.609 15.601V8.408l6.264 3.602z"/>
+          </svg>
+          <span>YouTube</span>
+        </a>
+
+        <!-- GitHub -->
+        <a
+          href="https://github.com/Artem-Kysylov"
+          class="nav-link"
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Find us on GitHub"
+        >
+          <svg viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/>
+          </svg>
+          <span>GitHub</span>
+        </a>
+
+      </nav>
+    </div>
+  </header>
+
+  <main class="article-page">
+    <div class="article-container">
+
+      <a href="/" class="article-back">
+        ← Back to Syntax Labs
+      </a>
+
+      <header class="article-header">
+        <div class="journal-card__meta">
+          <span class="journal-tag">#manifesto</span>
+          <span class="journal-date">Aug 18, 2026 • 4 min read</span>
+        </div>
+        <h1 class="article-title">
+          Why I’m Officially Stepping Away From Indie Hacking
+        </h1>
+        <p style="color: #a1a1aa; font-size: 0.95rem;">By Artem Kysylov</p>
+      </header>
+
+      <!-- Embedded YouTube Video -->
+      <div class="article-video-box">
+        <iframe 
+          src="https://www.youtube.com/embed/uuSedsByRvQ" 
+          title="The Brutal Reality of Building SaaS (Why I'm Pivoting)" 
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+          allowfullscreen>
+        </iframe>
+      </div>
+
+      <!-- ARTICLE BODY -->
+      <article class="article-body">
+        <p>
+          After a full year of shipping micro-applications, chasing $MRR, and maintaining the constant noise of the "build in public" ecosystem, I am officially stepping away from traditional indie hacking.
+        </p>
+
+        <p>
+          This isn't a post born out of sudden frustration. It’s a calculated, honest realization after shipping tools like <strong>TableXport</strong>, <strong>Spendly</strong>, and <strong>DataSplitter</strong> — tools I loved designing and engineering, but which ultimately highlighted the flaw in treating standalone frontend micro-utilities as long-term businesses.
+        </p>
+
+        <h2>1. The Marketing Reality &amp; $0 MRR</h2>
+        <p>
+          The most pervasive myth in the solo founder space is that if you build something clean, private, and fast, users will naturally discover it.
+        </p>
+        <p>
+          The reality? Building software is roughly 20% of the job. The remaining 80% is constant content production, distribution fighting against algorithm shifts, and aggressive marketing. When you spend months polishing local-first architecture only to face zero organic traffic without daily social media hustle, burnout becomes inevitable.
+        </p>
+
+        <blockquote>
+          "Building micro-tools forced me to realize a simple truth: I love solving complex technical problems, not managing daily social media funnels."
+        </blockquote>
+
+        <h2>2. The LLM Commodity Trap</h2>
+        <p>
+          When I started building local-first browser utilities, client-side privacy was a strong differentiator. But over the past year, Large Language Models and vibe-coding environments matured drastically.
+        </p>
+        <p>
+          Today, any user can prompt ChatGPT, Claude, or Cursor to generate a bespoke single-page CSV converter, PDF signer, or table parser in under two minutes. Single-purpose web utilities have transformed from products into commoditized scripts. Building frontend wrappers around basic logic is no longer a defensible technical or economic moat.
+        </p>
+
+        <h2>3. Stepping Off the "Build in Public" Hamster Wheel</h2>
+        <p>
+          The pressure to continuously ship, publish revenue screenshots, and optimize for social vanity metrics creates an illusion of progress. It encourages shipping shallow products quickly rather than mastering deep, foundational technology.
+        </p>
+        <p>
+          I realized I didn't want to be an endless builder of surface-level tools. I wanted to be a resilient engineer capable of building secure, robust, and complex technical systems.
+        </p>
+
+        <h2>The New Direction: Cybersecurity &amp; Python Automation</h2>
+        <p>
+          Moving forward, Syntax Labs evolves from a portfolio of micro-SaaS attempts into my personal technical lab. I am dedicating my learning and engineering focus entirely toward:
+        </p>
+        <ul>
+          <li><strong>Cybersecurity &amp; Network Resilience:</strong> Understanding security architectures, vulnerability assessment, and privacy at a protocol level.</li>
+          <li><strong>Python &amp; Deep Automation:</strong> Building backend workflows, automated tooling, and system-level scripts that solve actual structural friction.</li>
+        </ul>
+
+        <p>
+          I'll be documenting this learning journey right here in the Journal and on my YouTube channel — focusing on technical depth, honest progress, and real engineering rather than chasing arbitrary revenue targets.
+        </p>
+      </article>
+
+    </div>
+  </main>
+
+<!-- ============================================================
+       FOOTER
+       ============================================================ -->
+  <footer class="site-footer" role="contentinfo">
+    <div class="container">
+
+      <div class="footer-left">
+        <img src="/logo/logo.svg" alt="Syntax Labs" class="footer-logo" width="171" height="19" />
+        <span class="footer-copy">© 2026 Syntax Labs. All rights reserved.</span>
+        <a href="https://github.com/Artem-Kysylov/syntax-labs-vanilla-template" class="footer-template-link" target="_blank" rel="noopener noreferrer">Built with Syntax Vanilla Template</a>
+      </div>
+
+      <nav class="footer-nav" aria-label="Footer navigation">
+        <a href="/privacy.html" class="footer-link">Privacy Policy</a>
+        <a href="/terms.html" class="footer-link">Terms of Use</a>
+        <a href="mailto:hello@syntaxlabsapp.com" class="footer-link">Contact</a>
+      </nav>
+
+    </div>
+  </footer>
+
+</body>
+</html>
