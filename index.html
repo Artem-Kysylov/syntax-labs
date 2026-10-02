@@ -116,7 +116,6 @@
 
         <div class="hero__actions reveal reveal-delay-3">
           <a href="https://youtu.be/uuSedsByRvQ" target="_blank" rel="noopener noreferrer" class="btn btn--primary">
-            <!-- Arrow icon -->
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
               <path d="M3 7H11M11 7L7.5 3.5M11 7L7.5 10.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
@@ -141,7 +140,7 @@
         </h2>
 
         <div class="bento-grid" role="list">
-          <!-- ─── Card 2: DocStamp (Medium) ────────────────── -->
+          <!-- ─── Card 2: DocStamp ────────────────── -->
           <article
             class="bento-card bento-card--2 docstamp reveal reveal-delay-1"
             role="listitem"
@@ -166,7 +165,7 @@
           </article>
 
 
-          <!-- ─── Card 3: TableMask (Medium) ───────────────── -->
+          <!-- ─── Card 3: TableMask ───────────────── -->
           <article
             class="bento-card bento-card--3 tablemask reveal reveal-delay-2"
             role="listitem"
@@ -191,7 +190,7 @@
           </article>
 
 
-          <!-- ─── Card 4: DataSplitter (Small) ─────────────── -->
+          <!-- ─── Card 4: DataSplitter ─────────────── -->
           <article
             class="bento-card bento-card--4 datasplitter reveal reveal-delay-1"
             role="listitem"
@@ -215,7 +214,7 @@
             </div>
           </article>
 
-          <!-- ─── Card 6: SigFix (Small) ────────────────── -->
+          <!-- ─── Card 6: SigFix ────────────────── -->
           <article
             class="bento-card bento-card--6 sigfix reveal reveal-delay-1"
             role="listitem"
@@ -314,16 +313,11 @@
               Thoughts &amp; Essays.
             </h2>
           </div>
-          <!-- Пока статья одна, кнопка будет скрыта или вести на этот же раздел -->
-          <!-- <a href="#journal" class="journal-view-all btn-link">
-            View all articles
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-              <path d="M3 7H11M11 7L7.5 3.5M11 7L7.5 10.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-          </a> -->
         </div>
 
         <div class="journal-grid">
+
+          <!-- Article 1: Manifesto -->
           <article class="journal-card reveal reveal-delay-1">
             <a href="blog/quitting-indie-hacking.html" class="journal-card__link">
               <div class="journal-card__meta">
@@ -346,6 +340,34 @@
               </div>
             </a>
           </article>
+
+        <!-- Article 2: Scrimba & 30-Min Python Sprints -->
+        <article class="journal-card reveal reveal-delay-2">
+          <a href="blog/mastering-python-with-30-min-scrimba-sprints.html" class="journal-card__link">
+            <div class="journal-card__meta">
+              <span class="journal-tag">#python</span>
+              <span class="journal-date">Sep 29, 2026 • 4 min read</span>
+            </div>
+            <h3 class="journal-card__title">
+              How 30-Minute Daily Sprints on Scrimba Rewired My Python Understanding
+            </h3>
+            <p class="journal-card__desc">
+              A practical breakdown of mastering Python syntax line-by-line, leveraging interactive Scrimba screencasts, and
+              building a sustainable 30-minute daily practice without burnout.
+            </p>
+            <div class="journal-card__footer">
+              <span class="read-more">
+                Read Article
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg"
+                  aria-hidden="true">
+                  <path d="M3 7H11M11 7L7.5 3.5M11 7L7.5 10.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"
+                    stroke-linejoin="round" />
+                </svg>
+              </span>
+            </div>
+          </a>
+        </article>
+
         </div>
 
       </div>
@@ -375,11 +397,6 @@
     </div>
   </footer>
 
-
-  <!-- ============================================================
-       JAVASCRIPT — Scroll reveal + Bento card mouse-glow
-       Vanilla, no dependencies, ~60 lines
-       ============================================================ -->
   <script src="app.js" defer></script>
 
   <script>
@@ -403,12 +420,12 @@
         revealObserver.observe(el);
       });
 
-      /* --- Bento card radial glow (tracks mouse position) --- */
+      /* --- Bento card radial glow --- */
       document.querySelectorAll('.bento-card').forEach((card) => {
         card.addEventListener('mousemove', (e) => {
           const rect = card.getBoundingClientRect();
           const x = ((e.clientX - rect.left) / rect.width)  * 100;
-          const y = ((e.clientY - rect.top)  / rect.height) * 100;
+          const y = ((e.clientY - rect.top)   / rect.height) * 100;
           card.style.setProperty('--mouse-x', `${x}%`);
           card.style.setProperty('--mouse-y', `${y}%`);
         });
