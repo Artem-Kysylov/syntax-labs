@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <meta name="description" content="From tangled fingers in vimtutor to keyboard-only navigation in VS Code, browser, and macOS with Raycast." />
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml" />
+
+  <meta property="og:type" content="article" />
+  <meta property="og:url" content="https://syntaxlabsapp.com/blog/from-vimtutor-to-raycast-rewiring-my-workflow.html" />
+  <meta property="og:title" content="From vimtutor to Raycast: How I Ditched the Mouse &amp; Rewired My Workflow — Syntax Labs" />
+  <meta property="og:description" content="A lighthearted look at mastering Vim navigation, building muscle memory, retiring the mouse, and controlling macOS via Raycast." />
+  <meta property="og:image" content="https://syntaxlabsapp.com/open-graph.png" />
+
+  <title>From vimtutor to Raycast: How I Ditched the Mouse &amp; Rewired My Workflow — Syntax Labs</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="../styles.css" />
+</head>
+
+<body>
+
+  <!-- ============================================================
+       HEADER
+       ============================================================ -->
+  <header class="site-header" role="banner">
+    <div class="container">
+
+      <!-- Logo -->
+      <a href="/" class="logo" aria-label="Syntax Labs — home">
+        <img src="/logo/logo.svg" alt="" class="logo__image" width="171" height="19" />
+      </a>
+
+      <!-- Navigation -->
+      <nav class="site-nav" role="navigation" aria-label="Primary navigation">
+
+        <!-- Twitter / X -->
+        <a
+          href="https://x.com/tabXport"
+          class="nav-link"
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Follow us on X (Twitter)"
+        >
+          <svg viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.741l7.73-8.835L1.254 2.25H8.08l4.265 5.638 5.9-5.638Zm-1.161 17.52h1.833L7.084 4.126H5.117L17.083 19.77Z"/>
+          </svg>
+          <span>Twitter</span>
+        </a>
+
+        <!-- YouTube -->
+        <a
+          href="https://www.youtube.com/@Artem_AlwaysBuilding"
+          class="nav-link"
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Watch us on YouTube"
+        >
+          <svg viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <path d="M23.495 6.205a3.007 3.007 0 0 0-2.088-2.088c-1.87-.501-9.396-.501-9.396-.501s-7.507-.01-9.396.501A3.007 3.007 0 0 0 .527 6.205a31.247 31.247 0 0 0-.522 5.805 31.247 31.247 0 0 0 .522 5.783 3.007 3.007 0 0 0 2.088 2.088c1.868.502 9.396.502 9.396.502s7.506 0 9.396-.502a3.007 3.007 0 0 0 2.088-2.088 31.247 31.247 0 0 0 .5-5.783 31.247 31.247 0 0 0-.5-5.805zM9.609 15.601V8.408l6.264 3.602z"/>
+          </svg>
+          <span>YouTube</span>
+        </a>
+
+        <!-- GitHub -->
+        <a
+          href="https://github.com/Artem-Kysylov"
+          class="nav-link"
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Find us on GitHub"
+        >
+          <svg viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/>
+          </svg>
+          <span>GitHub</span>
+        </a>
+
+      </nav>
+    </div>
+  </header>
+
+  <main class="article-page">
+    <div class="article-container">
+
+      <a href="/" class="article-back">
+        ← Back to Syntax Labs
+      </a>
+
+      <header class="article-header">
+        <div class="journal-card__meta">
+          <span class="journal-tag">#vim</span>
+          <span class="journal-date">Oct 28, 2026 • 5 min read</span>
+        </div>
+        <h1 class="article-title">
+          From vimtutor to Raycast: How I Ditched the Mouse &amp; Rewired My Workflow
+        </h1>
+        <p style="color: #a1a1aa; font-size: 0.95rem;">By Artem Kysylov</p>
+      </header>
+
+      <!-- Embedded YouTube Video -->
+      <div class="article-video-box">
+        <iframe 
+          src="https://www.youtube.com/embed/c1SqUU0d4f4" 
+          title="I Tried Learning Vim... Without a Mouse" 
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+          allowfullscreen>
+        </iframe>
+      </div>
+
+      <!-- ARTICLE BODY -->
+      <article class="article-body">
+        <p>
+          Moving down the cybersecurity roadmap comes with one non-negotiable rule: you have to get comfortable inside a headless terminal without mice, GUIs, or glossy trackpads. And that naturally leads to every developer's favorite rite of passage: <strong>Vim</strong>.
+        </p>
+
+        <p>
+          Spoiler alert: Vim is definitely not something you master in a single relaxed evening. At first, your fingers tie themselves in literal knots, and your right hand involuntarily twitches toward the mouse every three seconds out of sheer panic. Here is how I survived the initial pain and turned keyboard-only navigation into a superpower.
+        </p>
+
+        <h2>1. The Survival Kit: vimtutor &amp; Sticky Notes</h2>
+        <p>
+          I started right where everyone should: by opening the terminal and launching <code>vimtutor</code>. It’s a brilliant 30-minute interactive lesson that forces you to navigate using only <code>HJKL</code>, delete lines with <code>dd</code>, and figure out how the hell to exit the editor without turning off your monitor.
+        </p>
+        <p>
+          To bridge the gap between "what does this key do?" and actual productivity, I deployed my secret weapons: Google and a collection of bright yellow sticky notes pasted directly around my monitor frame.
+        </p>
+
+        <blockquote>
+          "Learning Vim isn't like learning Python syntax—you don't study it conceptually. It is 100% pure muscle memory. Your brain doesn't think 'move left'; your index finger just twitches."
+        </blockquote>
+
+        <h2>2. Bringing Vim Into VS Code &amp; The Browser</h2>
+        <p>
+          Once the basics started sinking in, I didn't lock myself strictly in raw terminal sessions. I installed the official Vim extension directly inside VS Code.
+        </p>
+        <p>
+          The speed bump was instant. Executing commands like <code>ciw</code> (<em>change inner word</em>) or jumping straight to line definitions with keystrokes feels like pure magic once it clicks.
+        </p>
+        <p>
+          Naturally, I took it one step further and added Vimium to my browser. Suddenly, switching tabs, scrolling documentation, and clicking links happened purely via hotkeys. The trackpad was officially retired.
+        </p>
+
+        <h2>3. Beyond Editors: Controlling macOS with Raycast</h2>
+        <p>
+          Once you get hooked on home-row navigation, reaching for a mouse to open an app or search for a file feels ridiculously slow. To complete the setup, I configured <strong>Raycast</strong> across macOS.
+        </p>
+        <p>
+          Now window management, application launching, quick notes, and system commands all happen instantly with hotkeys. Everything just flies.
+        </p>
+
+        <div class="article-quote-card" style="background: rgba(255, 255, 255, 0.03); border-left: 3px solid #8dc63f; padding: 1.25rem; margin: 2rem 0; border-radius: 4px;">
+          <p style="margin: 0; font-style: italic; color: #e4e4e7;">
+            "Where the hell am I going to sit and cry? No keys, no mouse inside... <code>SHIFT + :wq</code> tonight!"
+          </p>
+        </div>
+
+        <h2>Fueling the Workflow</h2>
+        <p>
+          Of course, intense keyboard sprints require proper fuel. In the video breakdown above, I also cooked a quick Brooklyn Beckham-inspired meat-crust pizza during the break—crispy, high-protein, and zero carbs to keep the focus sharp.
+        </p>
+        <p>
+          Check out the full vlog above to see the setup in action, hear the song, and watch the full workflow unfold!
+        </p>
+      </article>
+
+      <!-- Social CTA -->
+      <div class="article-cta-card">
+        <span class="cta-badge">Follow the Journey</span>
+        <h3>Building in Public on YouTube &amp; X</h3>
+        <p>I document my transition to cybersecurity, Python automation, and retro devlogs in real-time. Join the community!</p>
+        <div class="cta-actions">
+          <a href="https://www.youtube.com/@Artem_AlwaysBuilding" target="_blank" rel="noopener noreferrer" class="btn btn--primary">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M23.495 6.205a3.007 3.007 0 0 0-2.088-2.088c-1.87-.501-9.396-.501-9.396-.501s-7.507-.01-9.396.501A3.007 3.007 0 0 0 .527 6.205a31.247 31.247 0 0 0-.522 5.805 31.247 31.247 0 0 0 .522 5.783 3.007 3.007 0 0 0 2.088 2.088c1.868.502 9.396.502 9.396.502s7.506 0 9.396-.502a3.007 3.007 0 0 0 2.088-2.088 31.247 31.247 0 0 0 .5-5.783 31.247 31.247 0 0 0-.5-5.805zM9.609 15.601V8.408l6.264 3.602z"/>
+            </svg>
+            Subscribe on YouTube
+          </a>
+          <a href="https://x.com/tabXport" target="_blank" rel="noopener noreferrer" class="btn btn--ghost">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.741l7.73-8.835L1.254 2.25H8.08l4.265 5.638 5.9-5.638Zm-1.161 17.52h1.833L7.084 4.126H5.117L17.083 19.77Z"/>
+            </svg>
+            Follow on X
+          </a>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- ============================================================
+       FOOTER
+       ============================================================ -->
+  <footer class="site-footer" role="contentinfo">
+    <div class="container">
+
+      <div class="footer-left">
+        <img src="/logo/logo.svg" alt="Syntax Labs" class="footer-logo" width="171" height="19" />
+        <span class="footer-copy">© 2026 Syntax Labs. All rights reserved.</span>
+        <a href="https://github.com/Artem-Kysylov/syntax-labs-vanilla-template" class="footer-template-link" target="_blank" rel="noopener noreferrer">Built with Syntax Vanilla Template</a>
+      </div>
+
+      <nav class="footer-nav" aria-label="Footer navigation">
+        <a href="/privacy.html" class="footer-link">Privacy Policy</a>
+        <a href="/terms.html" class="footer-link">Terms of Use</a>
+        <a href="mailto:hello@syntaxlabsapp.com" class="footer-link">Contact</a>
+      </nav>
+
+    </div>
+  </footer>
+
+</body>
+</html>

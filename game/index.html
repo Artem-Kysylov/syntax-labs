@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>Trapped in Vim :: :wq!</title>
+  <link rel="icon" href="data:," />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="game-stage">
+    <canvas id="game-canvas" width="800" height="450"></canvas>
+    <div id="touch-controls" hidden>
+      <div class="touch-pad touch-pad-left">
+        <button type="button" class="touch-key" data-key="KeyH" aria-label="Move left">H</button>
+        <button type="button" class="touch-key" data-key="KeyL" aria-label="Move right">L</button>
+      </div>
+      <div class="touch-pad touch-pad-right">
+        <button type="button" class="touch-key touch-key-fire" id="touch-fire" data-key="Space" aria-label="Fire" hidden>FIRE</button>
+        <button type="button" class="touch-key" data-key="KeyJ" aria-label="Crouch or drop">J</button>
+        <button type="button" class="touch-key touch-key-jump" data-key="KeyK" aria-label="Jump or fly">K</button>
+      </div>
+    </div>
+  </div>
+  <div id="orientation-overlay">
+    <p>PLEASE ROTATE YOUR<br />DEVICE TO LANDSCAPE <span class="orientation-icon">📱⚡</span></p>
+  </div>
+  <script src="game.js"></script>
+</body>
+</html>
