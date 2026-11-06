@@ -154,20 +154,28 @@
     wreck: { x: 2144, y: 1146, w: 520, h: 374 },
   };
 
-  const BOSS_SCALE = 0.35;
+  // Boss buff: 1.75x bigger (within the 1.5x-2x ask) -- applied to both the render
+  // scale and the Boss instance's hitbox (width/height in the class below) so the
+  // bigger sprite and its collision box grow together, not just the art.
+  const BOSS_SIZE_SCALE = 1.75;
+  const BOSS_SCALE = 0.35 * BOSS_SIZE_SCALE;
 
   const BOSS = {
-    maxHp: 8, // 8 discrete HP ticks
+    maxHp: 4, // 4 discrete HP ticks -- defeated strictly after 4 landed hits
     playerLaserDamage: 1, // exactly 1 tick per laser hit
-    attackIntervalMin: 2.2,
-    attackIntervalMax: 3.4,
+    attackIntervalMin: 1.0, // faster, more aggressive cadence (was 2.2-3.4s)
+    attackIntervalMax: 1.2,
     telegraphDuration: 0.6,
     firingDuration: 0.3,
-    hitFlashDuration: 0.15,
+    hitFlashDuration: 0.15, // how long the dedicated "hit" sprite pose shows
+    hitCooldownDuration: 0.6, // post-hit invincibility window -- blocks rapid-fire HP drain
+    recoilDuration: 0.15, // how long the knockback nudge takes to settle back to rest
+    recoilDistance: 16, // px nudged away from the player on each hit
     explosionDuration: 1.8,
     bobAmplitude: 10,
     bobSpeed: 2,
-    laserSpeed: 460,
+    moveSpeed: 160, // px/s horizontal patrol speed between the arena's middle and right edge
+    laserSpeed: 720, // faster projectile -- demands a quicker K/J reaction (was 460)
     laserWidth: 40,
     laserHeight: 120, // tall enough to threaten a standing player, not just mid-air
     laserColor: '#ff6a3c',
@@ -177,6 +185,8 @@
     baseTicks: 4,
     maxTicks: 6,
     cybercoinsPerBonusTick: 20,
+    coinsPerHeal: 10, // every 10 cybercoins collected restores one HP tick, deterministically
+    healFlashDuration: 0.4,
   };
 
   // ---------------------------------------------------------------------
@@ -198,7 +208,14 @@
     crouchSpeedMultiplier: 0.4,
     jumpVelocity: -760,
     dropThroughDuration: 0.35,
-    hurtInvulnDuration: 1.2,
+    hurtInvulnDuration: 1.5,
+  };
+
+  // Knockback impulse applied on a non-fatal hit, so the player separates from
+  // the hazard instead of re-colliding with it every frame of the i-frame window.
+  const HIT_KNOCKBACK = {
+    horizontalSpeed: 240, // px/s away from the hazard (~4px/frame at a 60fps reference)
+    verticalSpeed: 180, // px/s upward hop (~3px/frame at a 60fps reference)
   };
 
   const BLASTER = {
@@ -218,33 +235,137 @@
     maxUpSpeed: -420, // clamp on upward velocity so thrust doesn't runaway
   };
 
+  // Keycap enemies in the scrolling levels aren't hand-placed -- they're paced out
+  // by a queue/cooldown system (see GameplayScene._updateEnemySpawner) so the
+  // player always gets a fair, readable gap to react in with H/J/K/L.
+  const KEYCAP_SPAWN = {
+    minIntervalSeconds: 2.0, // cooldown between spawns
+    minDistancePx: 280, // and never closer together than this, whichever binds -- enforced across all lanes
+    maxVisible: 3, // at most this many keycaps on-screen (within the camera viewport) at once
+    minSpeed: 120, // 2.0px/frame at a 60fps reference
+    maxSpeed: 228, // 3.8px/frame at a 60fps reference
+    spawnAheadPadding: 60, // spawn just past the camera's right edge, out of sight
+    groundY: 400, // ground lane -- overlaps standing AND crouching, so it must be jumped (K)
+    headY: 345, // mid lane -- head/chest height, overlaps only a standing player, so it must be ducked (J)
+    highY: 130, // high lane -- upper platform tier, threatens players riding elevated platforms
+  };
+
+  // Fixed, predictable rhythm across the three vertical lanes -- not random -- so
+  // the player can learn to read incoming altitude the same way they read KEYCAP_SPAWN.minDistancePx.
+  const KEYCAP_ALTITUDE_CYCLE = ['ground', 'head', 'high'];
+
+  // Secret room bonus: cybercoins (and the jetpack) fall from the ceiling instead
+  // of sitting in fixed spots -- see GameplayScene._updateSecretRoomRain. Anything
+  // that reaches the floor uncaught despawns immediately; there's no second chance.
+  const SECRET_ROOM_RAIN = {
+    roomDuration: 18, // total bonus window, in seconds (~15-20s) -- ~36 coin drops at the interval
+    // below, roughly double the old hand-placed 17-orb room, but as cybercoins now, not orbs.
+    coinSpawnInterval: 0.5, // seconds between coin drops
+    fallSpeed: 180, // 3px/frame at a 60fps reference
+    spawnY: -20,
+    marginX: 50, // keep drops clear of the room's left/right walls
+    jetpackDropDelay: 3, // seconds after entering the room before the jetpack itself starts falling
+  };
+
   const LEVELS = {
     level1: {
       background: 'bg_level_1',
       spawn: { x: 100, y: GROUND.y },
+      worldWidth: 7200,
+      // Eight ground segments with gaps at each zone boundary -- jumpable without
+      // the jetpack (which isn't unlocked until the secret room in level2). Zones
+      // 5-8 repeat the zone 1-4 layout, offset +3700px, for a full second pass.
+      ground: [
+        { x: 0, y: 414, width: 760, height: 36 },
+        { x: 860, y: 414, width: 760, height: 36 },
+        { x: 1720, y: 414, width: 760, height: 36 },
+        { x: 2600, y: 414, width: 1000, height: 36 },
+        { x: 3700, y: 414, width: 760, height: 36 },
+        { x: 4560, y: 414, width: 760, height: 36 },
+        { x: 5420, y: 414, width: 760, height: 36 },
+        { x: 6300, y: 414, width: 900, height: 36 },
+      ],
       platforms: [
-        { x: 90, y: 350, width: 140, height: 16, dropThrough: true },
-        { x: 300, y: 280, width: 130, height: 16, dropThrough: true },
-        { x: 500, y: 210, width: 150, height: 16, dropThrough: true },
-        { x: 660, y: 320, width: 120, height: 16, dropThrough: true },
+        // Zone 1 (0-900): low, gentle introduction.
+        { x: 150, y: 350, width: 140, height: 16, dropThrough: true },
+        { x: 380, y: 300, width: 130, height: 16, dropThrough: true },
+        { x: 600, y: 340, width: 120, height: 16, dropThrough: true },
+        // Zone 2 (900-1800): mid-height, more vertical movement.
+        { x: 950, y: 300, width: 130, height: 16, dropThrough: true },
+        { x: 1150, y: 230, width: 140, height: 16, dropThrough: true },
+        { x: 1400, y: 280, width: 120, height: 16, dropThrough: true },
+        { x: 1600, y: 230, width: 110, height: 16, dropThrough: true },
+        // Zone 3 (1800-2700): the tallest climb of the level.
+        { x: 1850, y: 250, width: 120, height: 16, dropThrough: true },
+        { x: 2050, y: 190, width: 130, height: 16, dropThrough: true },
+        { x: 2280, y: 160, width: 120, height: 16, dropThrough: true },
+        { x: 2500, y: 230, width: 110, height: 16, dropThrough: true },
+        // Zone 4 (2700-3600): midpoint approach.
+        { x: 2750, y: 320, width: 130, height: 16, dropThrough: true },
+        { x: 2950, y: 260, width: 120, height: 16, dropThrough: true },
+        { x: 3150, y: 310, width: 130, height: 16, dropThrough: true },
+        { x: 3350, y: 350, width: 110, height: 16, dropThrough: true },
+        // Zone 5 (3700-4600): low, gentle introduction (second pass).
+        { x: 3850, y: 350, width: 140, height: 16, dropThrough: true },
+        { x: 4080, y: 300, width: 130, height: 16, dropThrough: true },
+        { x: 4300, y: 340, width: 120, height: 16, dropThrough: true },
+        // Zone 6 (4600-5500): mid-height, more vertical movement.
+        { x: 4650, y: 300, width: 130, height: 16, dropThrough: true },
+        { x: 4850, y: 230, width: 140, height: 16, dropThrough: true },
+        { x: 5100, y: 280, width: 120, height: 16, dropThrough: true },
+        { x: 5300, y: 230, width: 110, height: 16, dropThrough: true },
+        // Zone 7 (5500-6400): the tallest climb of the second half.
+        { x: 5550, y: 250, width: 120, height: 16, dropThrough: true },
+        { x: 5750, y: 190, width: 130, height: 16, dropThrough: true },
+        { x: 5980, y: 160, width: 120, height: 16, dropThrough: true },
+        { x: 6200, y: 230, width: 110, height: 16, dropThrough: true },
+        // Zone 8 (6300-7200): final approach to the exit.
+        { x: 6450, y: 320, width: 130, height: 16, dropThrough: true },
+        { x: 6650, y: 260, width: 120, height: 16, dropThrough: true },
+        { x: 6850, y: 310, width: 130, height: 16, dropThrough: true },
+        { x: 7050, y: 350, width: 110, height: 16, dropThrough: true },
       ],
       coins: [
-        { x: 160, y: 322 },
-        { x: 365, y: 252 },
-        { x: 575, y: 182 },
-        { x: 720, y: 292 },
-        { x: 420, y: 392 },
+        { x: 220, y: 322 },
+        { x: 445, y: 272 },
+        { x: 660, y: 312 },
         { x: 260, y: 392, type: 'powerup' },
-        { x: 700, y: 280, type: 'powerup' },
+        { x: 1015, y: 272 },
+        { x: 1220, y: 202 },
+        { x: 1460, y: 252 },
+        { x: 1655, y: 202 },
+        { x: 1910, y: 222 },
+        { x: 2115, y: 162 },
+        { x: 2340, y: 132 },
+        { x: 2555, y: 202 },
+        { x: 2150, y: 392, type: 'powerup' },
+        { x: 2815, y: 292 },
+        { x: 3010, y: 232 },
+        { x: 3210, y: 282 },
+        { x: 3410, y: 322 },
+        { x: 3920, y: 322 },
+        { x: 4145, y: 272 },
+        { x: 4360, y: 312 },
+        { x: 3960, y: 392, type: 'powerup' },
+        { x: 4715, y: 272 },
+        { x: 4920, y: 202 },
+        { x: 5160, y: 252 },
+        { x: 5355, y: 202 },
+        { x: 5610, y: 222 },
+        { x: 5815, y: 162 },
+        { x: 6040, y: 132 },
+        { x: 6255, y: 202 },
+        { x: 5850, y: 392, type: 'powerup' },
+        { x: 6515, y: 292 },
+        { x: 6710, y: 232 },
+        { x: 6910, y: 282 },
+        { x: 7110, y: 322 },
       ],
-      enemies: [
-        { x: 650, y: 150, speed: 90 },
-        { x: 380, y: 260, speed: 115 },
-        { x: 500, y: 390, speed: 140 },
-      ],
-      portals: [
+      enemies: [], // keycaps are paced out dynamically by the spawn queue, see GameplayScene
+      portals: [], // no Secret Portal in level1
+      exits: [
         {
-          x: 750,
+          x: 7100,
           y: GROUND.y,
           target: {
             kind: 'levelComplete',
@@ -260,32 +381,108 @@
     level2: {
       background: 'bg_level_2',
       spawn: { x: 40, y: GROUND.y },
+      worldWidth: 7200,
+      // Zones 5-8 repeat the zone 1-4 layout, offset +3720px, for a full second pass.
+      ground: [
+        { x: 0, y: 414, width: 700, height: 36 },
+        { x: 820, y: 414, width: 780, height: 36 },
+        { x: 1700, y: 414, width: 760, height: 36 },
+        { x: 2600, y: 414, width: 1000, height: 36 },
+        { x: 3720, y: 414, width: 700, height: 36 },
+        { x: 4540, y: 414, width: 780, height: 36 },
+        { x: 5420, y: 414, width: 760, height: 36 },
+        { x: 6320, y: 414, width: 880, height: 36 },
+      ],
       platforms: [
-        { x: 60, y: 330, width: 110, height: 16, dropThrough: true },
-        { x: 230, y: 250, width: 100, height: 16, dropThrough: true },
-        { x: 400, y: 180, width: 120, height: 16, dropThrough: true },
-        { x: 560, y: 260, width: 110, height: 16, dropThrough: true },
-        { x: 680, y: 340, width: 100, height: 16, dropThrough: true },
+        // Zone 1 (0-900).
+        { x: 100, y: 330, width: 110, height: 16, dropThrough: true },
+        { x: 300, y: 260, width: 100, height: 16, dropThrough: true },
+        { x: 500, y: 320, width: 110, height: 16, dropThrough: true },
+        // Zone 2 (900-1800).
+        { x: 900, y: 280, width: 110, height: 16, dropThrough: true },
+        { x: 1080, y: 200, width: 100, height: 16, dropThrough: true },
+        { x: 1300, y: 260, width: 120, height: 16, dropThrough: true },
+        { x: 1500, y: 340, width: 100, height: 16, dropThrough: true },
+        // Zone 3 (1800-2700): a side staircase climbs off the main path to an
+        // elevated perch holding the hidden Secret Portal, then rejoins below.
+        { x: 1750, y: 300, width: 110, height: 16, dropThrough: true },
+        { x: 1900, y: 230, width: 100, height: 16, dropThrough: true },
+        { x: 2050, y: 160, width: 110, height: 16, dropThrough: true },
+        { x: 2200, y: 130, width: 100, height: 16, dropThrough: true }, // secret perch
+        { x: 2350, y: 200, width: 110, height: 16, dropThrough: true },
+        { x: 2550, y: 260, width: 100, height: 16, dropThrough: true },
+        // Zone 4 (2700-3600): midpoint approach.
+        { x: 2700, y: 300, width: 110, height: 16, dropThrough: true },
+        { x: 2900, y: 230, width: 100, height: 16, dropThrough: true },
+        { x: 3100, y: 300, width: 120, height: 16, dropThrough: true },
+        { x: 3350, y: 340, width: 100, height: 16, dropThrough: true },
+        // Zone 5 (3720-4620, second pass).
+        { x: 3820, y: 330, width: 110, height: 16, dropThrough: true },
+        { x: 4020, y: 260, width: 100, height: 16, dropThrough: true },
+        { x: 4220, y: 320, width: 110, height: 16, dropThrough: true },
+        // Zone 6 (4620-5520, second pass).
+        { x: 4620, y: 280, width: 110, height: 16, dropThrough: true },
+        { x: 4800, y: 200, width: 100, height: 16, dropThrough: true },
+        { x: 5020, y: 260, width: 120, height: 16, dropThrough: true },
+        { x: 5220, y: 340, width: 100, height: 16, dropThrough: true },
+        // Zone 7 (5520-6420, second pass).
+        { x: 5470, y: 300, width: 110, height: 16, dropThrough: true },
+        { x: 5620, y: 230, width: 100, height: 16, dropThrough: true },
+        { x: 5770, y: 160, width: 110, height: 16, dropThrough: true },
+        { x: 5920, y: 130, width: 100, height: 16, dropThrough: true },
+        { x: 6070, y: 200, width: 110, height: 16, dropThrough: true },
+        { x: 6270, y: 260, width: 100, height: 16, dropThrough: true },
+        // Zone 8 (6320-7200): final approach to the exit.
+        { x: 6420, y: 300, width: 110, height: 16, dropThrough: true },
+        { x: 6620, y: 230, width: 100, height: 16, dropThrough: true },
+        { x: 6820, y: 300, width: 120, height: 16, dropThrough: true },
+        { x: 7070, y: 340, width: 100, height: 16, dropThrough: true },
       ],
       coins: [
-        { x: 110, y: 302 },
-        { x: 275, y: 222 },
-        { x: 610, y: 232 },
-        { x: 725, y: 312 },
-        { x: 150, y: 392 },
-        { x: 470, y: 392, type: 'powerup' },
-        { x: 730, y: 300, type: 'powerup' },
+        { x: 150, y: 302 },
+        { x: 350, y: 232 },
+        { x: 550, y: 292 },
+        { x: 150, y: 392, type: 'powerup' },
+        { x: 950, y: 252 },
+        { x: 1130, y: 172 },
+        { x: 1350, y: 232 },
+        { x: 1550, y: 312 },
+        { x: 1800, y: 272 },
+        { x: 1950, y: 202 },
+        { x: 2100, y: 132 },
+        { x: 2400, y: 172 },
+        { x: 2600, y: 232 },
+        { x: 2250, y: 102, type: 'powerup' }, // guards the secret perch
+        { x: 2750, y: 272 },
+        { x: 2950, y: 202 },
+        { x: 3150, y: 272 },
+        { x: 3400, y: 312 },
+        { x: 3870, y: 302 },
+        { x: 4070, y: 232 },
+        { x: 4270, y: 292 },
+        { x: 3870, y: 392, type: 'powerup' },
+        { x: 4670, y: 252 },
+        { x: 4850, y: 172 },
+        { x: 5070, y: 232 },
+        { x: 5270, y: 312 },
+        { x: 5520, y: 272 },
+        { x: 5670, y: 202 },
+        { x: 5820, y: 132 },
+        { x: 6120, y: 172 },
+        { x: 6320, y: 232 },
+        { x: 5970, y: 102, type: 'powerup' },
+        { x: 6470, y: 272 },
+        { x: 6670, y: 202 },
+        { x: 6870, y: 272 },
+        { x: 7120, y: 312 },
       ],
-      enemies: [
-        { x: 700, y: 140, speed: 100 },
-        { x: 320, y: 220, speed: 120 },
-        { x: 500, y: 300, speed: 130 },
-        { x: 340, y: 390, speed: 150 },
-      ],
-      portals: [
-        { x: 455, y: 180, target: { kind: 'level', levelKey: 'secretRoom' } },
+      enemies: [], // keycaps are paced out dynamically by the spawn queue, see GameplayScene
+      // Secret Portal -- elevated, off the main path, purely a hidden bonus route
+      // into secretRoom. Never the required way forward.
+      portals: [{ x: 2250, y: 130, target: { kind: 'level', levelKey: 'secretRoom' } }],
+      exits: [
         {
-          x: 750,
+          x: 7100,
           y: GROUND.y,
           target: {
             kind: 'levelComplete',
@@ -310,30 +507,14 @@
         { x: 530, y: 260, width: 100, height: 16, dropThrough: true },
         { x: 650, y: 330, width: 70, height: 16, dropThrough: true },
       ],
-      coins: [
-        // Stacks of orbs floating above each platform.
-        { x: 135, y: 300, type: 'orb' },
-        { x: 135, y: 270, type: 'orb' },
-        { x: 280, y: 230, type: 'orb' },
-        { x: 280, y: 200, type: 'orb' },
-        { x: 435, y: 160, type: 'orb' },
-        { x: 435, y: 130, type: 'orb' },
-        { x: 460, y: 150, type: 'orb' },
-        { x: 580, y: 230, type: 'orb' },
-        { x: 580, y: 200, type: 'orb' },
-        { x: 685, y: 300, type: 'orb' },
-        { x: 685, y: 270, type: 'orb' },
-        // Ground-level orbs filling the gaps between platforms.
-        { x: 40, y: 392, type: 'orb' },
-        { x: 210, y: 392, type: 'orb' },
-        { x: 355, y: 392, type: 'orb' },
-        { x: 510, y: 392, type: 'orb' },
-        { x: 640, y: 392, type: 'orb' },
-        { x: 745, y: 392, type: 'orb' },
-      ],
+      // No hand-placed coins here -- this room is a timed "coin rain" instead,
+      // see SECRET_ROOM_RAIN and GameplayScene._updateSecretRoomRain. Each drop
+      // despawns the instant it hits the floor uncaught, one chance only.
+      coins: [],
       enemies: [], // pure bonus room, no obstacles
-      // The big reward, floating right by the exit so it's the last thing collected.
-      jetpackPickup: { x: 700, y: 300 },
+      // The big reward -- falls from the ceiling partway through the rain instead
+      // of sitting in a fixed spot, so it has to be caught like the coins.
+      jetpackPickup: { x: 700 },
       portals: [
         {
           x: 760,
@@ -541,7 +722,24 @@
       this.justPressed = new Set();
       window.addEventListener('keydown', (e) => {
         this._press(e.code);
-        if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Enter'].includes(e.code)) {
+        // e.code is the physical key, so it already reads 'h'/'H'/caps-lock 'H' alike --
+        // no separate uppercase handling needed, just the full gameplay key set here so
+        // none of them ever scroll/select the page while playing.
+        if (
+          [
+            'Space',
+            'ArrowUp',
+            'ArrowDown',
+            'ArrowLeft',
+            'ArrowRight',
+            'Enter',
+            'KeyH',
+            'KeyJ',
+            'KeyK',
+            'KeyL',
+            'KeyF',
+          ].includes(e.code)
+        ) {
           e.preventDefault();
         }
       });
@@ -650,6 +848,16 @@
       return true;
     }
 
+    // Small separating impulse after a non-fatal hit -- direction is -1/1, away
+    // from whatever hazard caused the hit -- so it isn't immediately re-touched
+    // the next frame while i-frames are still running out.
+    applyKnockback(direction) {
+      this.vx = direction * HIT_KNOCKBACK.horizontalSpeed;
+      this.vy = -HIT_KNOCKBACK.verticalSpeed;
+      this.grounded = false;
+      this.currentPlatform = null;
+    }
+
     activateBlaster() {
       this.blasterTimer = BLASTER.duration;
     }
@@ -659,7 +867,10 @@
     }
 
     tryFire(input) {
-      if (!this.hasBlaster() || !input.wasPressed('Space')) return null;
+      // Dedicated fire input -- deliberately not Space/K, which are jump and jetpack
+      // thrust, so firing can never eat a jump or vice versa.
+      const firePressed = input.wasPressed('KeyF') || input.wasPressed('ShiftLeft') || input.wasPressed('ShiftRight');
+      if (!this.hasBlaster() || !firePressed) return null;
       this.isFiringPose = true;
       this.firingPoseTimer = BLASTER.firingPoseDuration;
       const muzzleX = this.facing === 1 ? this.x + this.width : this.x;
@@ -689,12 +900,12 @@
       this.height = nextHeight;
     }
 
-    update(dt, input, platforms) {
+    update(dt, input, platforms, groundSegments = [GROUND], worldWidth = CANVAS_WIDTH) {
       const moveLeft = input.isDown('ArrowLeft') || input.isDown('KeyH');
       const moveRight = input.isDown('ArrowRight') || input.isDown('KeyL');
-      // Space jumps as usual, except while the blaster is equipped, where it's reserved for firing.
-      const jumpPressed =
-        input.wasPressed('ArrowUp') || input.wasPressed('KeyK') || (input.wasPressed('Space') && !this.hasBlaster());
+      // Jump/thrust (K/Up/Space) and fire (F/Shift, see tryFire) are on separate keys,
+      // so Space always jumps here regardless of whether the blaster is equipped.
+      const jumpPressed = input.wasPressed('ArrowUp') || input.wasPressed('KeyK') || input.wasPressed('Space');
       const dropHeld = input.isDown('ArrowDown') || input.isDown('KeyJ');
       const dropPressed = input.wasPressed('ArrowDown') || input.wasPressed('KeyJ');
 
@@ -748,7 +959,7 @@
 
       // --- Integrate + collide ---
       const prevBottom = this.y + this.height;
-      this.x = Math.max(0, Math.min(CANVAS_WIDTH - this.width, this.x + this.vx * dt));
+      this.x = Math.max(0, Math.min(worldWidth - this.width, this.x + this.vx * dt));
       this.y += this.vy * dt;
 
       if (this.y < 0) {
@@ -756,7 +967,7 @@
         this.vy = Math.max(this.vy, 0); // jetpack thrust can't carry the player above the canvas
       }
 
-      this._resolveVerticalCollisions(prevBottom, platforms);
+      this._resolveVerticalCollisions(prevBottom, platforms, groundSegments);
 
       if (this.grounded && this.hasJetpack) {
         this.jetpackFuel = Math.min(JETPACK.maxFuel, this.jetpackFuel + JETPACK.rechargeRate * dt);
@@ -793,10 +1004,10 @@
       this._updateAnimation(dt);
     }
 
-    _resolveVerticalCollisions(prevBottom, platforms) {
+    _resolveVerticalCollisions(prevBottom, platforms, groundSegments) {
       if (this.vy < 0) return; // moving up: never land, always pass through platform tops
 
-      const candidates = [GROUND, ...platforms];
+      const candidates = [...groundSegments, ...platforms];
       this.grounded = false;
       this.currentPlatform = null;
 
@@ -874,6 +1085,13 @@
       } else if (this.isThrusting) {
         sheet = assets.getImage('hero_action');
         frame = ACTION_FLY_FRAME;
+        dstW = frame.w * HERO_SCALE;
+        dstH = frame.h * HERO_SCALE;
+      } else if (this.hasBlaster()) {
+        // Keep the blaster visibly equipped across idle/run/jump, not just the
+        // instant a shot fires -- otherwise the player looks unarmed between shots.
+        sheet = assets.getImage('hero_action');
+        frame = ACTION_FIRE_FRAME;
         dstW = frame.w * HERO_SCALE;
         dstH = frame.h * HERO_SCALE;
       } else {
@@ -1053,10 +1271,10 @@
       this.bobTimer = 0;
     }
 
-    update(dt, playerCenterX) {
-      const centerX = this.x + this.width / 2;
-      const dir = playerCenterX >= centerX ? 1 : -1;
-      this.x = Math.max(0, Math.min(CANVAS_WIDTH - this.width, this.x + dir * this.speed * dt));
+    // Fixed linear drift, never homing/tracking the player -- so keycaps move
+    // predictably and the player can learn to read and react to them.
+    update(dt, worldWidth = CANVAS_WIDTH) {
+      this.x = Math.max(0, Math.min(worldWidth - this.width, this.x - this.speed * dt));
       this.bobTimer += dt;
     }
 
@@ -1104,6 +1322,51 @@
     }
   }
 
+  // The standard level-exit marker -- visually distinct from Portal (vector-drawn,
+  // no sprite sheet) so the main progression path never looks like the hidden
+  // Secret Portal bonus warp.
+  class ExitFlag {
+    constructor({ x, y, target }) {
+      this.width = 40;
+      this.height = 120;
+      this.x = x - this.width / 2;
+      this.y = y - this.height;
+      this.target = target;
+      this.waveTimer = Math.random() * Math.PI * 2;
+    }
+
+    update(dt) {
+      this.waveTimer += dt;
+    }
+
+    render(ctx) {
+      const poleX = this.x + this.width / 2 - 2;
+      const poleTop = this.y;
+      const poleBottom = this.y + this.height;
+      const wave = Math.sin(this.waveTimer * 4) * 4;
+
+      ctx.fillStyle = '#8a8a9a';
+      ctx.fillRect(poleX, poleTop, 4, this.height);
+
+      ctx.fillStyle = '#20202a';
+      ctx.fillRect(this.x - 8, poleBottom - 4, this.width + 16, 10);
+
+      ctx.fillStyle = '#50dc78';
+      ctx.beginPath();
+      ctx.moveTo(poleX + 4, poleTop + 8);
+      ctx.lineTo(poleX + 4 + 34, poleTop + 22 + wave);
+      ctx.lineTo(poleX + 4, poleTop + 36);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'bottom';
+      ctx.font = '8px "Press Start 2P", monospace';
+      ctx.fillStyle = '#e8e8f0';
+      ctx.fillText('EXIT', poleX + 2, poleTop - 4);
+    }
+  }
+
   class Laser {
     constructor({
       x,
@@ -1126,9 +1389,9 @@
       this.alive = true;
     }
 
-    update(dt) {
+    update(dt, worldWidth = CANVAS_WIDTH) {
       this.x += this.direction * this.speed * dt;
-      if (this.x + this.width < 0 || this.x > CANVAS_WIDTH) {
+      if (this.x + this.width < 0 || this.x > worldWidth) {
         this.alive = false;
       }
     }
@@ -1145,22 +1408,31 @@
 
   class Boss {
     constructor({ x, y }) {
-      this.x = x; // fixed horizontal position; it only bobs vertically
+      this.x = x; // horizontal position -- now patrols, see the vx/patrol fields below
       this.baseY = y;
-      this.width = 140;
-      this.height = 160; // generous enough that a standing shot connects across the whole bob cycle
+      this.width = 140 * BOSS_SIZE_SCALE;
+      this.height = 160 * BOSS_SIZE_SCALE; // generous enough that a standing shot connects across the whole bob cycle
       this.maxHp = BOSS.maxHp;
       this.hp = this.maxHp;
 
       this.state = 'idle'; // idle -> telegraph -> firing -> idle
       this.stateTimer = 0;
-      this.attackCooldown = 1.5; // first attack arrives a little sooner than the loop average
+      this.attackCooldown = 1.0; // first attack arrives quickly
+
+      // Horizontal patrol: paces between the arena's middle and its right edge,
+      // reversing direction at each bound -- see the movement step in update().
+      this.patrolMinX = CANVAS_WIDTH / 2;
+      this.patrolMaxX = CANVAS_WIDTH - this.width / 2 - 20;
+      this.vx = -BOSS.moveSpeed;
 
       this.bobTimer = Math.random() * Math.PI * 2;
       this.animFrame = 0;
       this.animTimer = 0;
 
       this.hitFlashTimer = 0;
+      this.isInvincible = false; // true for BOSS.hitCooldownDuration after each landed hit
+      this.invincibleTimer = 0;
+      this.recoilTimer = 0; // drives the brief knockback nudge applied in render()
       this.defeated = false;
       this.explosionTimer = 0;
     }
@@ -1173,14 +1445,27 @@
       return { x: this.x - this.width / 2, y: this.currentY - this.height / 2, width: this.width, height: this.height };
     }
 
+    // Purely cosmetic -- recoil never shifts bounds, so it can't affect hit detection.
+    get recoilOffsetX() {
+      if (this.recoilTimer <= 0) return 0;
+      return (this.recoilTimer / BOSS.recoilDuration) * BOSS.recoilDistance;
+    }
+
+    // Returns true only if the hit actually landed (not defeated, not mid-cooldown) --
+    // callers use this to gate hit sfx/explosion triggers to real, strictly-one-tick hits.
     takeDamage(amount) {
-      if (this.defeated) return;
+      if (this.defeated || this.isInvincible) return false;
       this.hp = Math.max(0, this.hp - amount);
       this.hitFlashTimer = BOSS.hitFlashDuration;
+      this.isInvincible = true;
+      this.invincibleTimer = BOSS.hitCooldownDuration;
+      this.recoilTimer = BOSS.recoilDuration;
       if (this.hp <= 0) {
         this.defeated = true;
+        this.isInvincible = false; // the explosion sequence takes over from here
         this.explosionTimer = BOSS.explosionDuration;
       }
+      return true;
     }
 
     // Returns a shot descriptor the instant it fires, or null otherwise.
@@ -1194,6 +1479,28 @@
 
       if (this.hitFlashTimer > 0) {
         this.hitFlashTimer -= dt;
+      }
+
+      if (this.invincibleTimer > 0) {
+        this.invincibleTimer -= dt;
+        if (this.invincibleTimer <= 0) {
+          this.invincibleTimer = 0;
+          this.isInvincible = false;
+        }
+      }
+
+      if (this.recoilTimer > 0) {
+        this.recoilTimer = Math.max(0, this.recoilTimer - dt);
+      }
+
+      // Horizontal patrol -- bounces between the arena middle and its right edge.
+      this.x += this.vx * dt;
+      if (this.x <= this.patrolMinX) {
+        this.x = this.patrolMinX;
+        this.vx = Math.abs(this.vx);
+      } else if (this.x >= this.patrolMaxX) {
+        this.x = this.patrolMaxX;
+        this.vx = -Math.abs(this.vx);
       }
 
       this.animTimer += dt;
@@ -1252,7 +1559,17 @@
 
       const dstW = frame.w * BOSS_SCALE;
       const dstH = frame.h * BOSS_SCALE;
-      ctx.drawImage(sheet, frame.x, frame.y, frame.w, frame.h, this.x - dstW / 2, cy - dstH / 2, dstW, dstH);
+      const dstX = this.x - dstW / 2 + this.recoilOffsetX;
+      const dstY = cy - dstH / 2;
+
+      if (!this.defeated && this.isInvincible) {
+        // Strobe red/white for the whole hit-cooldown window -- the visual read on
+        // "can't be hurt again yet", distinct from the brief BOSS_FRAMES.hit pose.
+        const flashColor = Math.floor(this.invincibleTimer * 20) % 2 === 0 ? '#ffffff' : '#ff2d50';
+        drawTintedSprite(ctx, sheet, frame, dstX, dstY, dstW, dstH, flashColor);
+      } else {
+        ctx.drawImage(sheet, frame.x, frame.y, frame.w, frame.h, dstX, dstY, dstW, dstH);
+      }
     }
   }
 
@@ -1382,6 +1699,7 @@
 
       if (input.wasPressed('Enter') || input.wasPressed('Space')) {
         this.game.assets.playSfx('sfx_select');
+        this.game.scenes[SceneState.GAMEPLAY].currentLevel = 1; // starting a game is always a fresh run
         this.game.setScene(SceneState.GAMEPLAY);
       }
     }
@@ -1432,16 +1750,33 @@
       this.game = game;
       this.player = null;
       this.levelKey = null;
+      this.currentLevel = 1; // 1 or 2 -- which level a Game Over retry reloads into
       this.background = null;
       this.platforms = [];
+      this.groundSegments = [GROUND];
+      this.worldWidth = CANVAS_WIDTH;
+      this.camera = { x: 0, width: CANVAS_WIDTH };
       this.coins = [];
       this.enemies = [];
+      this.enemySpawning = false;
+      this.enemySpawnCooldown = 0;
+      this.lastEnemySpawnX = null;
+      this.nextEnemyAltitude = 'ground';
+      this.nextEnemyFrame = 0;
       this.portals = [];
+      this.exits = [];
       this.lasers = [];
-      this.jetpackPickup = null;
+      this.fallingItems = []; // secret room coin rain + falling jetpack, see _updateSecretRoomRain
+      this.rainActive = false;
+      this.rainSpawnCooldown = 0;
+      this.secretRoomTimeRemaining = 0; // bonus window left -- the exit stays inert until this hits 0
+      this.jetpackDropTimer = 0;
+      this.jetpackDropped = false;
       this.thrustParticles = [];
       this.cybercoins = 0;
       this.damageTaken = 0; // health = maxHealth - damageTaken, so growing maxHealth also grants a free tick
+      this.coinsForExtraLife = 0; // progress toward the next deterministic +1 HP tick (see _collectCoinValue)
+      this.healFlashTimer = 0;
       this.portalCooldown = 0;
       this.pendingCompletion = null;
       this._resuming = false;
@@ -1462,6 +1797,26 @@
       return Math.max(0, this.maxHealth - this.damageTaken);
     }
 
+    // Deterministic reward: every PLAYER_HEALTH.coinsPerHeal cybercoins collected
+    // (tracked via a running counter, not the total) restores exactly one HP tick.
+    // A loop (not a single if) so a single high-value orb that crosses more than
+    // one threshold at once grants every tick it earned, not just one.
+    _collectCoinValue(value) {
+      this.cybercoins += value;
+      this.coinsForExtraLife += value;
+      while (this.coinsForExtraLife >= PLAYER_HEALTH.coinsPerHeal) {
+        this.coinsForExtraLife -= PLAYER_HEALTH.coinsPerHeal;
+        this._grantHealTick();
+      }
+    }
+
+    _grantHealTick() {
+      if (this.damageTaken <= 0) return; // already at full health -- nothing to restore
+      this.damageTaken -= 1;
+      this.healFlashTimer = PLAYER_HEALTH.healFlashDuration;
+      this.game.assets.playSfx('sfx_select');
+    }
+
     enter() {
       if (this._resuming) {
         // Coming back from the LEVEL_COMPLETE screen: level/player state was already
@@ -1471,8 +1826,13 @@
       }
       this.cybercoins = 0;
       this.damageTaken = 0;
+      this.coinsForExtraLife = 0;
+      this.healFlashTimer = 0;
       this.player = new Player(this.game, 0, GROUND.y);
-      this._loadLevel('level1');
+      // A Game Over retry reloads whichever level the player died in (currentLevel
+      // is left alone here); StartMenuScene and WinScene reset it to 1 themselves
+      // before entering, since those are genuinely fresh runs.
+      this._loadLevel(this.currentLevel === 2 ? 'level2' : 'level1');
       this.game.assets.stopAllMusic();
       this.game.assets.playMusic('bgm_gameplay', { volume: MUSIC_VOLUME, loop: true });
     }
@@ -1493,13 +1853,30 @@
     _loadLevel(levelKey) {
       const data = LEVELS[levelKey];
       this.levelKey = levelKey;
+      if (levelKey === 'level1' || levelKey === 'level2') {
+        this.currentLevel = levelKey === 'level2' ? 2 : 1;
+      }
       this.background = data.background;
       this.platforms = data.platforms;
+      this.groundSegments = data.ground || [GROUND];
+      this.worldWidth = data.worldWidth || CANVAS_WIDTH;
+      this.camera.x = 0;
       this.coins = data.coins.map((c) => new Collectible(c));
       this.enemies = data.enemies.map((e, i) => new Enemy({ ...e, frameIndex: i }));
+      this.enemySpawning = this.worldWidth > CANVAS_WIDTH;
+      this.enemySpawnCooldown = KEYCAP_SPAWN.minIntervalSeconds;
+      this.lastEnemySpawnX = null;
+      this.nextEnemyAltitude = 'ground';
+      this.nextEnemyFrame = this.enemies.length;
       this.portals = data.portals.map((p) => new Portal(p));
+      this.exits = (data.exits || []).map((e) => new ExitFlag(e));
       this.lasers = [];
-      this.jetpackPickup = data.jetpackPickup ? new JetpackPickup(data.jetpackPickup) : null;
+      this.fallingItems = [];
+      this.rainActive = levelKey === 'secretRoom';
+      this.rainSpawnCooldown = SECRET_ROOM_RAIN.coinSpawnInterval;
+      this.secretRoomTimeRemaining = this.rainActive ? SECRET_ROOM_RAIN.roomDuration : 0;
+      this.jetpackDropTimer = SECRET_ROOM_RAIN.jetpackDropDelay;
+      this.jetpackDropped = false;
       this.thrustParticles = [];
       this.game.assets.stopMusic('sfx_jetpack');
       this._wasThrusting = false;
@@ -1507,15 +1884,20 @@
       this.portalCooldown = 0.4; // guards against re-triggering a portal the moment a level loads
     }
 
-    _handleEnemyHit() {
+    _handleEnemyHit(enemy) {
       if (!this.player.hit()) return;
       this.damageTaken += 1;
       this.game.assets.playSfx('sfx_hurt');
       if (this.health <= 0) {
+        // Only a depleted HP pool resets progress -- back to the start of the level.
         this.game.setScene(SceneState.GAME_OVER);
       } else {
-        const spawn = LEVELS[this.levelKey].spawn;
-        this.player.resetTo(spawn.x, spawn.y);
+        // Non-fatal hit: keep the player's position (no snap back to spawn) and
+        // just knock them away from the hazard so i-frames aren't immediately
+        // spent re-touching the same enemy.
+        const playerCenterX = this.player.x + this.player.width / 2;
+        const enemyCenterX = enemy.x + enemy.width / 2;
+        this.player.applyKnockback(playerCenterX <= enemyCenterX ? -1 : 1);
       }
     }
 
@@ -1524,6 +1906,96 @@
       this.game.assets.playSfx('sfx_hurt');
       this.damageTaken = this.maxHealth;
       this.game.setScene(SceneState.GAME_OVER);
+    }
+
+    // Queue/cooldown keycap spawner: paces enemies out so the player always has
+    // a fair, readable window to react in -- never a wall of random obstacles.
+    _updateEnemySpawner(dt) {
+      if (this.enemySpawnCooldown > 0) {
+        this.enemySpawnCooldown -= dt;
+      }
+
+      const viewportLeft = this.camera.x;
+      const viewportRight = this.camera.x + this.camera.width;
+      const visibleCount = this.enemies.filter(
+        (e) => e.x + e.width > viewportLeft && e.x < viewportRight
+      ).length;
+
+      if (this.enemySpawnCooldown > 0 || visibleCount >= KEYCAP_SPAWN.maxVisible) return;
+
+      const spawnX = viewportRight + KEYCAP_SPAWN.spawnAheadPadding;
+      if (spawnX > this.worldWidth - 60) return; // stop spawning once nearing the exit
+
+      if (this.lastEnemySpawnX !== null && spawnX - this.lastEnemySpawnX < KEYCAP_SPAWN.minDistancePx) return;
+
+      // Cycle ground (dodge by jumping, K) -> mid (dodge by ducking, J) -> high
+      // (upper platform tier -- threatens players riding the tall platforms) in a
+      // fixed, predictable rhythm, so the player can read incoming altitude ahead of time.
+      const altitude = this.nextEnemyAltitude;
+      const cycleIndex = KEYCAP_ALTITUDE_CYCLE.indexOf(altitude);
+      this.nextEnemyAltitude = KEYCAP_ALTITUDE_CYCLE[(cycleIndex + 1) % KEYCAP_ALTITUDE_CYCLE.length];
+      const y =
+        altitude === 'ground' ? KEYCAP_SPAWN.groundY : altitude === 'head' ? KEYCAP_SPAWN.headY : KEYCAP_SPAWN.highY;
+      const speed = KEYCAP_SPAWN.minSpeed + Math.random() * (KEYCAP_SPAWN.maxSpeed - KEYCAP_SPAWN.minSpeed);
+
+      this.enemies.push(new Enemy({ x: spawnX, y, speed, frameIndex: this.nextEnemyFrame++ }));
+      this.lastEnemySpawnX = spawnX;
+      this.enemySpawnCooldown = KEYCAP_SPAWN.minIntervalSeconds;
+    }
+
+    // Secret room only: cybercoins (and, once, the jetpack) fall from the ceiling
+    // instead of sitting in fixed spots. Anything that reaches the floor uncaught
+    // is removed on the spot -- one chance only, no re-falling, no queueing up.
+    // New drops stop once secretRoomTimeRemaining runs out, but items already in
+    // the air keep falling/resolving normally -- nothing freezes mid-air.
+    _updateSecretRoomRain(dt) {
+      if (this.secretRoomTimeRemaining > 0) {
+        this.secretRoomTimeRemaining = Math.max(0, this.secretRoomTimeRemaining - dt);
+      }
+
+      if (this.secretRoomTimeRemaining > 0) {
+        this.rainSpawnCooldown -= dt;
+        if (this.rainSpawnCooldown <= 0) {
+          const x =
+            SECRET_ROOM_RAIN.marginX + Math.random() * (CANVAS_WIDTH - SECRET_ROOM_RAIN.marginX * 2);
+          // Plain cybercoins only -- the official coin sprite/anim, no orbs.
+          this.fallingItems.push(new Collectible({ x, y: SECRET_ROOM_RAIN.spawnY, type: 'coin' }));
+          this.rainSpawnCooldown = SECRET_ROOM_RAIN.coinSpawnInterval;
+        }
+      }
+
+      if (!this.jetpackDropped && this.secretRoomTimeRemaining > 0) {
+        this.jetpackDropTimer -= dt;
+        if (this.jetpackDropTimer <= 0) {
+          this.jetpackDropped = true;
+          const dropX = LEVELS.secretRoom.jetpackPickup.x;
+          this.fallingItems.push(new JetpackPickup({ x: dropX, y: SECRET_ROOM_RAIN.spawnY }));
+        }
+      }
+
+      const surviving = [];
+      for (const item of this.fallingItems) {
+        item.y += SECRET_ROOM_RAIN.fallSpeed * dt;
+        item.update(dt); // drives the sprite's own idle animation/pulse, not its fall
+
+        if (aabbOverlap(this.player, item)) {
+          if (item instanceof JetpackPickup) {
+            this.player.activateJetpack();
+            this.game.assets.playSfx('sfx_jetpack');
+          } else {
+            this._collectCoinValue(item.value);
+            this.game.assets.playSfx('sfx_coin');
+          }
+          continue; // caught -- remove from the array immediately
+        }
+
+        if (item.y >= GROUND.y) {
+          continue; // touched the floor uncaught -- instant despawn, one chance only
+        }
+
+        surviving.push(item);
+      }
+      this.fallingItems = surviving;
     }
 
     _triggerPortal(portal) {
@@ -1547,7 +2019,11 @@
     }
 
     update(dt, input) {
-      this.player.update(dt, input, this.platforms);
+      this.player.update(dt, input, this.platforms, this.groundSegments, this.worldWidth);
+
+      const maxCameraX = Math.max(0, this.worldWidth - this.camera.width);
+      const focusX = this.player.x + this.player.width / 2 - this.camera.width / 2;
+      this.camera.x = Math.max(0, Math.min(maxCameraX, focusX));
 
       if (this.player.y > CANVAS_HEIGHT) {
         this._handleFatalFall();
@@ -1559,15 +2035,10 @@
         this.lasers.push(new Laser(shot));
         this.game.assets.playSfx('sfx_laser');
       }
-      this.lasers.forEach((laser) => laser.update(dt));
+      this.lasers.forEach((laser) => laser.update(dt, this.worldWidth));
 
-      if (this.jetpackPickup) {
-        this.jetpackPickup.update(dt);
-        if (!this.jetpackPickup.collected && aabbOverlap(this.player, this.jetpackPickup)) {
-          this.jetpackPickup.collected = true;
-          this.player.activateJetpack();
-          this.game.assets.playSfx('sfx_jetpack');
-        }
+      if (this.rainActive) {
+        this._updateSecretRoomRain(dt);
       }
 
       if (this.player.isThrusting) {
@@ -1593,25 +2064,39 @@
           this.player.activateBlaster();
           this.game.assets.playSfx('sfx_select');
         } else {
-          this.cybercoins += coin.value;
+          this._collectCoinValue(coin.value);
           this.game.assets.playSfx('sfx_coin');
         }
       });
 
+      if (this.healFlashTimer > 0) {
+        this.healFlashTimer = Math.max(0, this.healFlashTimer - dt);
+      }
+
+      if (this.enemySpawning) {
+        this._updateEnemySpawner(dt);
+      }
+
       const survivingEnemies = [];
       for (const enemy of this.enemies) {
-        enemy.update(dt, this.player.x + this.player.width / 2);
+        // Dodged and scrolled off the back of the camera -- despawn to free up
+        // the maxVisible budget instead of trailing the player forever.
+        if (this.enemySpawning && enemy.x + enemy.width < this.camera.x - 100) {
+          continue;
+        }
+
+        enemy.update(dt, this.worldWidth);
 
         const hitByLaser = this.lasers.find((laser) => laser.alive && aabbOverlap(laser, enemy));
         if (hitByLaser) {
           hitByLaser.alive = false;
-          this.cybercoins += BLASTER.enemyKillBonus;
+          this._collectCoinValue(BLASTER.enemyKillBonus);
           this.game.assets.playSfx('sfx_explosion');
           continue; // destroyed -- drop it, skip the player-collision check below
         }
 
         if (!this.player.invulnerable && aabbOverlap(this.player, enemy)) {
-          this._handleEnemyHit();
+          this._handleEnemyHit(enemy);
         }
         survivingEnemies.push(enemy);
       }
@@ -1619,12 +2104,16 @@
       this.lasers = this.lasers.filter((laser) => laser.alive);
 
       this.portals.forEach((portal) => portal.update(dt));
+      this.exits.forEach((exit) => exit.update(dt));
+      // The secret room's own exit stays inert until its bonus window fully elapses --
+      // this is what makes the extended room duration actually matter, not just the rain.
+      const exitGated = this.rainActive && this.secretRoomTimeRemaining > 0;
       if (this.portalCooldown > 0) {
         this.portalCooldown -= dt;
-      } else {
-        const hitPortal = this.portals.find((portal) => aabbOverlap(this.player, portal));
-        if (hitPortal) {
-          this._triggerPortal(hitPortal);
+      } else if (!exitGated) {
+        const hitTransition = [...this.exits, ...this.portals].find((t) => aabbOverlap(this.player, t));
+        if (hitTransition) {
+          this._triggerPortal(hitTransition);
         }
       }
 
@@ -1640,40 +2129,83 @@
       ctx.fillRect(platform.x, platform.y, platform.width, 3);
     }
 
-    render(ctx) {
-      const w = CANVAS_WIDTH;
-      const h = CANVAS_HEIGHT;
-      const assets = this.game.assets;
-      const bg = assets.getImage(this.background);
-
-      if (bg) {
-        ctx.drawImage(bg, 0, 0, w, h);
-      } else {
-        ctx.fillStyle = '#111';
-        ctx.fillRect(0, 0, w, h);
+    _renderBackground(ctx) {
+      const bg = this.game.assets.getImage(this.background);
+      const tiles = Math.ceil(this.worldWidth / CANVAS_WIDTH);
+      for (let i = 0; i < tiles; i++) {
+        const tileX = i * CANVAS_WIDTH;
+        if (bg) {
+          ctx.drawImage(bg, tileX, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+        } else {
+          ctx.fillStyle = '#111';
+          ctx.fillRect(tileX, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+        }
       }
+    }
+
+    render(ctx) {
+      const assets = this.game.assets;
+
+      // World-space layer: scrolls with the camera. Restored before the HUD so
+      // UI stays pinned to the screen regardless of how far the camera has panned.
+      ctx.save();
+      ctx.translate(-this.camera.x, 0);
+
+      this._renderBackground(ctx);
 
       this.platforms.forEach((platform) => this._drawPlatform(ctx, platform));
 
-      ctx.fillStyle = '#20202a';
-      ctx.fillRect(GROUND.x, GROUND.y, GROUND.width, GROUND.height);
-      ctx.fillStyle = '#50dc78';
-      ctx.fillRect(GROUND.x, GROUND.y, GROUND.width, 3);
+      this.groundSegments.forEach((segment) => {
+        ctx.fillStyle = '#20202a';
+        ctx.fillRect(segment.x, segment.y, segment.width, segment.height);
+        ctx.fillStyle = '#50dc78';
+        ctx.fillRect(segment.x, segment.y, segment.width, 3);
+      });
 
       const itemsSheet = assets.getImage('items_and_fx');
+      this.exits.forEach((exit) => exit.render(ctx));
       this.portals.forEach((portal) => portal.render(ctx, itemsSheet));
       this.coins.forEach((coin) => coin.render(ctx, itemsSheet));
-      if (this.jetpackPickup) this.jetpackPickup.render(ctx, itemsSheet);
+      this.fallingItems.forEach((item) => item.render(ctx, itemsSheet));
       this.enemies.forEach((enemy) => enemy.render(ctx, itemsSheet));
       this.lasers.forEach((laser) => laser.render(ctx));
       this.thrustParticles.forEach((p) => p.render(ctx, itemsSheet));
 
       this.player.render(ctx);
 
+      ctx.restore();
+
       this._renderHud(ctx);
     }
 
     _renderHud(ctx) {
+      if (this.rainActive) {
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+        ctx.font = '10px "Press Start 2P", monospace';
+        if (this.secretRoomTimeRemaining > 0) {
+          ctx.fillStyle = '#4ad7ff';
+          ctx.fillText(`BONUS TIME: ${Math.ceil(this.secretRoomTimeRemaining)}s`, CANVAS_WIDTH / 2, 12);
+        } else {
+          ctx.fillStyle = '#50dc78';
+          ctx.fillText('EXIT UNLOCKED!', CANVAS_WIDTH / 2, 12);
+        }
+      }
+
+      if (this.healFlashTimer > 0) {
+        // Brief glow around the HP ticks -- the visual half of the +1 HP cue,
+        // fading out over PLAYER_HEALTH.healFlashDuration.
+        const t = this.healFlashTimer / PLAYER_HEALTH.healFlashDuration;
+        const segW = 36;
+        const gap = 4;
+        const totalW = this.maxHealth * (segW + gap) - gap;
+        ctx.save();
+        ctx.strokeStyle = `rgba(80, 220, 120, ${0.3 + 0.5 * t})`;
+        ctx.lineWidth = 3;
+        ctx.strokeRect(12 - 4, 12 - 4, totalW + 8, 18 + 8);
+        ctx.restore();
+      }
+
       drawHealthTicks(ctx, {
         x: 12,
         y: 12,
@@ -1691,7 +2223,7 @@
       const hintParts = ['H/L: MOVE'];
       hintParts.push(this.player.hasJetpack ? 'HOLD K/UP/SPACE: JUMP+FLY' : 'K/UP/SPACE: JUMP');
       hintParts.push('J/DOWN: CROUCH-DROP');
-      if (this.player.hasBlaster()) hintParts.push('SPACE: FIRE!');
+      if (this.player.hasBlaster()) hintParts.push('F: FIRE!');
       ctx.fillText(hintParts.join('   '), 12, CANVAS_HEIGHT - 12);
 
       ctx.textAlign = 'right';
@@ -1831,7 +2363,7 @@
       }
 
       if (input.wasPressed('Enter') || input.wasPressed('Space')) {
-        this.game.setScene(SceneState.GAMEPLAY); // retry = fresh run from Level 1
+        this.game.setScene(SceneState.GAMEPLAY); // retry = reload the level the player died in
       }
     }
 
@@ -1895,7 +2427,8 @@
       }
 
       if (input.wasPressed('Enter') || input.wasPressed('Space')) {
-        this.game.setScene(SceneState.GAMEPLAY); // play again = straight into a fresh run
+        this.game.scenes[SceneState.GAMEPLAY].currentLevel = 1; // play again = straight into a fresh run
+        this.game.setScene(SceneState.GAMEPLAY);
       }
     }
 
@@ -2005,7 +2538,9 @@
       this.player.activateBlaster();
       this.player.infiniteBlaster = true;
       this.explosionParticles = [];
-      this.boss = new Boss({ x: 650, y: 320 }); // low enough that a standing player's laser connects
+      // y keeps the same ground clearance as before despite the bigger hitbox
+      // (bottom edge ~400, 14px above GROUND.y) so a standing player's laser still connects.
+      this.boss = new Boss({ x: 650, y: 260 });
       this.lasers = [];
       this.victoryTriggered = false;
       this.game.assets.stopAllMusic();
@@ -2084,10 +2619,12 @@
       this.lasers.forEach((laser) => {
         if (!laser.alive) return;
         if (!laser.fromBoss && aabbOverlap(laser, this.boss.bounds)) {
-          laser.alive = false;
+          laser.alive = false; // the shot is absorbed either way, even during the hit-cooldown
           const wasDefeated = this.boss.defeated;
-          this.boss.takeDamage(BOSS.playerLaserDamage);
-          this.game.assets.playSfx('sfx_hurt');
+          const damageLanded = this.boss.takeDamage(BOSS.playerLaserDamage);
+          if (damageLanded) {
+            this.game.assets.playSfx('sfx_hurt');
+          }
           if (!wasDefeated && this.boss.defeated) {
             this.game.assets.playSfx('sfx_explosion');
             this._spawnExplosionParticles();
@@ -2143,7 +2680,7 @@
       ctx.textBaseline = 'top';
       ctx.font = '8px "Press Start 2P", monospace';
       ctx.fillStyle = 'rgba(232, 232, 240, 0.7)';
-      ctx.fillText('H/L: MOVE   K/UP/SPACE: JUMP   SPACE: FIRE!', 12, CANVAS_HEIGHT - 20);
+      ctx.fillText('H/L: MOVE   K/UP/SPACE: JUMP   F: FIRE!', 12, CANVAS_HEIGHT - 20);
 
       // Player HP (top-left).
       drawHealthTicks(ctx, {
