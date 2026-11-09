@@ -89,7 +89,20 @@
   // hero_action.png layout (measured from source pixels) -- blaster firing pose
   // ---------------------------------------------------------------------
 
-  const ACTION_FIRE_FRAME = { x: 1350, y: 323, w: 320, h: 463 };
+  // Tightened from the original { x: 1350, y: 323, w: 320, h: 463 }, which bled
+  // ~45px into the next pose on the sheet (the following frame's forward foot/
+  // shoe), rendering as a stray leg artifact near the player's feet.
+  const ACTION_FIRE_FRAME = { x: 1306, y: 362, w: 322, h: 428 };
+  // Three "weapon ready" poses (gun angle sways; the sheet has no leg-animated
+  // walk cycle for the blaster-equipped pose) -- cycled while grounded and
+  // moving so holding the blaster doesn't freeze on one static bitmap while
+  // running. The middle pose doubles as the standing-still frame.
+  const ACTION_RUN_FRAMES = [
+    { x: 146, y: 364, w: 200, h: 424 },
+    { x: 393, y: 364, w: 231, h: 424 },
+    { x: 673, y: 364, w: 231, h: 424 },
+  ];
+  const ACTION_STAND_FRAME = ACTION_RUN_FRAMES[1];
   const ACTION_FLY_FRAME = { x: 2034, y: 893, w: 518, h: 550 };
 
   // ---------------------------------------------------------------------
@@ -161,10 +174,16 @@
   const BOSS_SCALE = 0.35 * BOSS_SIZE_SCALE;
 
   const BOSS = {
-    maxHp: 4, // 4 discrete HP ticks -- defeated strictly after 4 landed hits
+    maxHp: 8, // 8 discrete HP ticks -- defeated strictly after 8 landed hits
     playerLaserDamage: 1, // exactly 1 tick per laser hit
     attackIntervalMin: 1.0, // faster, more aggressive cadence (was 2.2-3.4s)
     attackIntervalMax: 1.2,
+    // Enrage phase: once hp drops to/below half (see Boss#isEnraged), attacks
+    // come noticeably faster and hit harder to dodge -- forces the back half of
+    // the fight to be read on reflex instead of the opener's steadier rhythm.
+    enrageHpFraction: 0.5,
+    enrageIntervalMultiplier: 0.6, // ~40% shorter cooldown between attacks while enraged
+    enrageLaserSpeedMultiplier: 1.25, // ~25% faster projectiles while enraged
     telegraphDuration: 0.6,
     firingDuration: 0.3,
     hitFlashDuration: 0.15, // how long the dedicated "hit" sprite pose shows
@@ -176,9 +195,19 @@
     bobSpeed: 2,
     moveSpeed: 160, // px/s horizontal patrol speed between the arena's middle and right edge
     laserSpeed: 720, // faster projectile -- demands a quicker K/J reaction (was 460)
-    laserWidth: 40,
-    laserHeight: 120, // tall enough to threaten a standing player, not just mid-air
-    laserColor: '#ff6a3c',
+    // Two alternating attack patterns (see Boss#nextAttackType) instead of one
+    // generic bolt -- LOW skims the floor (dodge: jump, K), HIGH cuts across
+    // head height (dodge: duck, J). Low bolts are wider/shorter; high bolts are
+    // narrower/taller so a jump carries the player's head straight into one
+    // instead of clearing it -- only ducking keeps you under its bottom edge.
+    laserLowWidth: 56,
+    laserLowHeight: 60,
+    laserLowBottomY: 414, // flush with GROUND.y -- a crouching player's body (head at 376) still overlaps this
+    laserHighWidth: 30,
+    laserHighHeight: 250,
+    laserHighBottomY: 374, // just above a crouching player's head (376), and tall enough to reach above a jump's ~113px apex
+    laserColor: '#ff6a3c', // outer neon glow
+    laserCoreColor: '#fff6c2', // bright inner core
   };
 
   const PLAYER_HEALTH = {
@@ -206,7 +235,11 @@
     friction: 1800,
     maxRunSpeed: 220,
     crouchSpeedMultiplier: 0.4,
-    jumpVelocity: -760,
+    // -520 caps a standing jump's rise at ~113px (v^2 / 2g) -- roughly 1.5-2
+    // platform tiers (tiers run ~50-70px apart across the level data) instead of
+    // the old -760, which cleared ~241px and let a single jump skip straight to
+    // the top of a climb without using the intermediate platforms.
+    jumpVelocity: -520,
     dropThroughDuration: 0.35,
     hurtInvulnDuration: 1.5,
   };
@@ -239,11 +272,11 @@
   // by a queue/cooldown system (see GameplayScene._updateEnemySpawner) so the
   // player always gets a fair, readable gap to react in with H/J/K/L.
   const KEYCAP_SPAWN = {
-    minIntervalSeconds: 2.0, // cooldown between spawns
-    minDistancePx: 280, // and never closer together than this, whichever binds -- enforced across all lanes
-    maxVisible: 3, // at most this many keycaps on-screen (within the camera viewport) at once
-    minSpeed: 120, // 2.0px/frame at a 60fps reference
-    maxSpeed: 228, // 3.8px/frame at a 60fps reference
+    minIntervalSeconds: 1.0, // cooldown between spawns -- shorter so the next one queues up while earlier ones are still on screen
+    minDistancePx: 200, // and never closer together than this, whichever binds -- enforced across all lanes
+    maxVisible: 4, // at most this many keycaps on-screen (within the camera viewport) at once
+    minSpeed: 162, // 2.7px/frame at a 60fps reference (+35% over the original 120)
+    maxSpeed: 308, // 5.1px/frame at a 60fps reference (+35% over the original 228)
     spawnAheadPadding: 60, // spawn just past the camera's right edge, out of sight
     groundY: 400, // ground lane -- overlaps standing AND crouching, so it must be jumped (K)
     headY: 345, // mid lane -- head/chest height, overlaps only a standing player, so it must be ducked (J)
@@ -478,8 +511,10 @@
       ],
       enemies: [], // keycaps are paced out dynamically by the spawn queue, see GameplayScene
       // Secret Portal -- elevated, off the main path, purely a hidden bonus route
-      // into secretRoom. Never the required way forward.
-      portals: [{ x: 2250, y: 130, target: { kind: 'level', levelKey: 'secretRoom' } }],
+      // into secretRoom. Never the required way forward. Tagged with an id so
+      // GameplayScene._loadLevel can drop it once it's been used this run (see
+      // secretPortalConsumed) -- a one-time detour, not a repeatable shortcut.
+      portals: [{ id: 'secretPortal', x: 2250, y: 130, target: { kind: 'level', levelKey: 'secretRoom' } }],
       exits: [
         {
           x: 7100,
@@ -515,16 +550,18 @@
       // The big reward -- falls from the ceiling partway through the rain instead
       // of sitting in a fixed spot, so it has to be caught like the coins.
       jetpackPickup: { x: 700 },
+      // Exits straight back into Level 2 (no stat screen -- this is a quick bonus
+      // detour, not a level completion), dropping the player back onto the secret
+      // perch rather than the level's default spawn, so they can carry on toward
+      // Level 2's own exit from right where they left it.
       portals: [
         {
           x: 760,
           y: GROUND.y,
           target: {
-            kind: 'levelComplete',
-            header: 'SECRET ROOM CLEARED!',
-            statLabel: 'TOTAL CYBERCOINS',
-            nextLabel: 'PRESS ENTER OR SPACE FOR BOSS ARENA',
-            next: { kind: 'scene', sceneKey: SceneState.BOSS_ARENA },
+            kind: 'level',
+            levelKey: 'level2',
+            returnTo: { x: 2250 + 40, y: 130 },
           },
         },
       ],
@@ -867,9 +904,10 @@
     }
 
     tryFire(input) {
-      // Dedicated fire input -- deliberately not Space/K, which are jump and jetpack
-      // thrust, so firing can never eat a jump or vice versa.
-      const firePressed = input.wasPressed('KeyF') || input.wasPressed('ShiftLeft') || input.wasPressed('ShiftRight');
+      // Dedicated fire input -- strictly KeyF. Deliberately not Space/K (jump and
+      // jetpack thrust) or Shift, so firing can never eat a jump/thrust press or
+      // trigger from a stray modifier key.
+      const firePressed = input.wasPressed('KeyF');
       if (!this.hasBlaster() || !firePressed) return null;
       this.isFiringPose = true;
       this.firingPoseTimer = BLASTER.firingPoseDuration;
@@ -903,7 +941,7 @@
     update(dt, input, platforms, groundSegments = [GROUND], worldWidth = CANVAS_WIDTH) {
       const moveLeft = input.isDown('ArrowLeft') || input.isDown('KeyH');
       const moveRight = input.isDown('ArrowRight') || input.isDown('KeyL');
-      // Jump/thrust (K/Up/Space) and fire (F/Shift, see tryFire) are on separate keys,
+      // Jump/thrust (K/Up/Space) and fire (F only, see tryFire) are on separate keys,
       // so Space always jumps here regardless of whether the blaster is equipped.
       const jumpPressed = input.wasPressed('ArrowUp') || input.wasPressed('KeyK') || input.wasPressed('Space');
       const dropHeld = input.isDown('ArrowDown') || input.isDown('KeyJ');
@@ -1090,8 +1128,15 @@
       } else if (this.hasBlaster()) {
         // Keep the blaster visibly equipped across idle/run/jump, not just the
         // instant a shot fires -- otherwise the player looks unarmed between shots.
+        // Cycle the weapon-ready frames while actually moving on the ground (driven
+        // by the same animTimer-advanced animFrame as the unarmed run cycle) so
+        // holding the blaster doesn't freeze into one static bitmap while running;
+        // standing still (vx === 0) always shows the static ready frame instead.
         sheet = assets.getImage('hero_action');
-        frame = ACTION_FIRE_FRAME;
+        frame =
+          this.grounded && this.vx !== 0
+            ? ACTION_RUN_FRAMES[this.animFrame % ACTION_RUN_FRAMES.length]
+            : ACTION_STAND_FRAME;
         dstW = frame.w * HERO_SCALE;
         dstH = frame.h * HERO_SCALE;
       } else {
@@ -1213,7 +1258,10 @@
       const isOrbLike = type === 'orb' || type === 'powerup';
       this.frames = isOrbLike ? ORB_FRAMES : COIN_FRAMES;
       this.scale = isOrbLike ? ORB_SCALE : COIN_SCALE;
-      this.value = type === 'orb' ? 50 : type === 'coin' ? 10 : 0; // powerup grants no cybercoins
+      // A single coin always counts as exactly +1 cybercoin -- previously this was 10,
+      // which (matching PLAYER_HEALTH.coinsPerHeal, also 10) granted a free heal tick
+      // on literally every coin picked up instead of every 10th.
+      this.value = type === 'orb' ? 50 : type === 'coin' ? 1 : 0; // powerup grants no cybercoins
       this.width = isOrbLike ? 34 : 26;
       this.height = this.width;
       this.x = x - this.width / 2;
@@ -1291,12 +1339,13 @@
   }
 
   class Portal {
-    constructor({ x, y, target }) {
+    constructor({ x, y, target, id }) {
       this.width = 64;
       this.height = 96;
       this.x = x - this.width / 2;
       this.y = y - this.height;
       this.target = target;
+      this.id = id; // optional tag, e.g. 'secretPortal' -- see GameplayScene._triggerPortal
       this.animFrame = 0;
       this.animTimer = 0;
     }
@@ -1398,10 +1447,35 @@
 
     render(ctx) {
       ctx.save();
-      ctx.fillStyle = this.color;
-      ctx.shadowColor = this.color;
-      ctx.shadowBlur = 8;
-      ctx.fillRect(this.x, this.y, this.width, this.height);
+      if (this.fromBoss) {
+        // Neon energy-bolt look: a few fading afterimages trailing behind its
+        // direction of travel, a soft glowing aura, then a bright core on top --
+        // same hitbox/shape as before, just styled to read as the boss's attack.
+        const trailSteps = 3;
+        ctx.shadowBlur = 0;
+        for (let i = trailSteps; i >= 1; i--) {
+          ctx.globalAlpha = 0.12 * (trailSteps - i + 1);
+          ctx.fillStyle = this.color;
+          ctx.fillRect(this.x - this.direction * i * this.width * 0.7, this.y, this.width, this.height);
+        }
+        ctx.globalAlpha = 1;
+
+        ctx.shadowColor = this.color;
+        ctx.shadowBlur = 14;
+        ctx.fillStyle = this.color;
+        ctx.fillRect(this.x, this.y, this.width, this.height);
+
+        const insetX = this.width * 0.28;
+        const insetY = this.height * 0.28;
+        ctx.shadowBlur = 6;
+        ctx.fillStyle = BOSS.laserCoreColor;
+        ctx.fillRect(this.x + insetX / 2, this.y + insetY / 2, this.width - insetX, this.height - insetY);
+      } else {
+        ctx.fillStyle = this.color;
+        ctx.shadowColor = this.color;
+        ctx.shadowBlur = 8;
+        ctx.fillRect(this.x, this.y, this.width, this.height);
+      }
       ctx.restore();
     }
   }
@@ -1418,6 +1492,10 @@
       this.state = 'idle'; // idle -> telegraph -> firing -> idle
       this.stateTimer = 0;
       this.attackCooldown = 1.0; // first attack arrives quickly
+      // Fixed, predictable alternation (not random) -- same rationale as
+      // KEYCAP_ALTITUDE_CYCLE -- so the player can learn to read and react to
+      // the upcoming pattern instead of guessing.
+      this.nextAttackType = 'low';
 
       // Horizontal patrol: paces between the arena's middle and its right edge,
       // reversing direction at each bound -- see the movement step in update().
@@ -1439,6 +1517,12 @@
 
     get currentY() {
       return this.baseY + Math.sin(this.bobTimer * BOSS.bobSpeed) * BOSS.bobAmplitude;
+    }
+
+    // Enrage kicks in at/below half HP and holds until defeat (hp only ever goes
+    // down mid-fight, so this can't flicker on/off) -- see BOSS.enrage* constants.
+    get isEnraged() {
+      return !this.defeated && this.hp <= this.maxHp * BOSS.enrageHpFraction;
     }
 
     get bounds() {
@@ -1524,7 +1608,15 @@
           this.state = 'firing';
           this.stateTimer = BOSS.firingDuration;
           const bounds = this.bounds;
-          return { x: bounds.x, y: this.currentY, direction: -1 };
+          const type = this.nextAttackType;
+          this.nextAttackType = type === 'low' ? 'high' : 'low';
+          const width = type === 'low' ? BOSS.laserLowWidth : BOSS.laserHighWidth;
+          const height = type === 'low' ? BOSS.laserLowHeight : BOSS.laserHighHeight;
+          const bottomY = type === 'low' ? BOSS.laserLowBottomY : BOSS.laserHighBottomY;
+          // Laser's constructor treats `y` as the bolt's center, so derive it from
+          // the fixed bottom edge rather than the boss's own (bobbing) body height --
+          // the lane has to stay put regardless of the boss's bob phase.
+          return { x: bounds.x, y: bottomY - height / 2, direction: -1, width, height, laserType: type };
         }
         return null;
       }
@@ -1533,7 +1625,8 @@
       this.stateTimer -= dt;
       if (this.stateTimer <= 0) {
         this.state = 'idle';
-        this.attackCooldown = BOSS.attackIntervalMin + Math.random() * (BOSS.attackIntervalMax - BOSS.attackIntervalMin);
+        const baseCooldown = BOSS.attackIntervalMin + Math.random() * (BOSS.attackIntervalMax - BOSS.attackIntervalMin);
+        this.attackCooldown = this.isEnraged ? baseCooldown * BOSS.enrageIntervalMultiplier : baseCooldown;
       }
       return null;
     }
@@ -1778,6 +1871,10 @@
       this.coinsForExtraLife = 0; // progress toward the next deterministic +1 HP tick (see _collectCoinValue)
       this.healFlashTimer = 0;
       this.portalCooldown = 0;
+      // Once true, _loadLevel drops Level 2's secret portal entirely -- it's a
+      // one-time detour per run, not a repeatable shortcut. Reset alongside the
+      // other run-scoped counters below on a genuinely fresh run.
+      this.secretPortalConsumed = false;
       this.pendingCompletion = null;
       this._resuming = false;
       this._pausingForLevelComplete = false;
@@ -1828,6 +1925,7 @@
       this.damageTaken = 0;
       this.coinsForExtraLife = 0;
       this.healFlashTimer = 0;
+      this.secretPortalConsumed = false;
       this.player = new Player(this.game, 0, GROUND.y);
       // A Game Over retry reloads whichever level the player died in (currentLevel
       // is left alone here); StartMenuScene and WinScene reset it to 1 themselves
@@ -1850,7 +1948,11 @@
       this.game.assets.stopMusic('bgm_gameplay');
     }
 
-    _loadLevel(levelKey) {
+    // spawnOverride lets a portal drop the player at a specific point instead of
+    // the level's default spawn -- used by the secret room's exit, which returns
+    // the player to Level 2 right next to the secret portal rather than all the
+    // way back at the level's start (see LEVELS.secretRoom.portals).
+    _loadLevel(levelKey, spawnOverride) {
       const data = LEVELS[levelKey];
       this.levelKey = levelKey;
       if (levelKey === 'level1' || levelKey === 'level2') {
@@ -1868,7 +1970,10 @@
       this.lastEnemySpawnX = null;
       this.nextEnemyAltitude = 'ground';
       this.nextEnemyFrame = this.enemies.length;
-      this.portals = data.portals.map((p) => new Portal(p));
+      // Drop the secret portal once it's been used this run -- see secretPortalConsumed.
+      this.portals = data.portals
+        .filter((p) => !(p.id === 'secretPortal' && this.secretPortalConsumed))
+        .map((p) => new Portal(p));
       this.exits = (data.exits || []).map((e) => new ExitFlag(e));
       this.lasers = [];
       this.fallingItems = [];
@@ -1880,7 +1985,11 @@
       this.thrustParticles = [];
       this.game.assets.stopMusic('sfx_jetpack');
       this._wasThrusting = false;
-      this.player.resetTo(data.spawn.x, data.spawn.y);
+      // resetTo() only ever touches position/velocity -- hasJetpack, blasterTimer,
+      // etc. all carry over untouched, so flight unlocked in the secret room is
+      // still available for the rest of Level 2 after this.
+      const spawn = spawnOverride || data.spawn;
+      this.player.resetTo(spawn.x, spawn.y);
       this.portalCooldown = 0.4; // guards against re-triggering a portal the moment a level loads
     }
 
@@ -2002,7 +2111,10 @@
       this.game.assets.playSfx('sfx_teleport');
       const target = portal.target;
       if (target.kind === 'level') {
-        this._loadLevel(target.levelKey);
+        if (portal.id === 'secretPortal') {
+          this.secretPortalConsumed = true; // one-time detour -- _loadLevel drops it from here on
+        }
+        this._loadLevel(target.levelKey, target.returnTo);
       } else if (target.kind === 'scene') {
         this.game.setScene(target.sceneKey);
       } else if (target.kind === 'levelComplete') {
@@ -2603,11 +2715,9 @@
       if (bossShot) {
         this.lasers.push(
           new Laser({
-            ...bossShot,
-            width: BOSS.laserWidth,
-            height: BOSS.laserHeight,
+            ...bossShot, // carries the attack-specific width/height (see Boss#update)
             color: BOSS.laserColor,
-            speed: BOSS.laserSpeed,
+            speed: this.boss.isEnraged ? BOSS.laserSpeed * BOSS.enrageLaserSpeedMultiplier : BOSS.laserSpeed,
             fromBoss: true,
           })
         );
@@ -2848,6 +2958,32 @@
     );
   }
 
+  // Borderless fullscreen for immersion/recording. The button is the reliable
+  // path -- F11 is intercepted as the browser's OWN native fullscreen shortcut
+  // in most desktop browsers before page JS ever sees the keydown, so this is
+  // strictly best-effort and only fires in the environments that don't.
+  function setUpFullscreenToggle() {
+    const toggleFullscreen = () => {
+      if (document.fullscreenElement) {
+        document.exitFullscreen().catch(() => {});
+      } else {
+        document.documentElement.requestFullscreen().catch(() => {});
+      }
+    };
+
+    const button = document.getElementById('fullscreen-toggle');
+    if (button) {
+      button.addEventListener('click', toggleFullscreen);
+    }
+
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'F11') {
+        e.preventDefault();
+        toggleFullscreen();
+      }
+    });
+  }
+
   window.addEventListener('DOMContentLoaded', () => {
     const canvas = document.getElementById('game-canvas');
     canvas.width = CANVAS_WIDTH;
@@ -2857,6 +2993,8 @@
     const assets = new AssetManager(IMAGE_MANIFEST, AUDIO_MANIFEST);
 
     drawLoadingScreen(ctx, 0, assets.total, '');
+
+    setUpFullscreenToggle();
 
     assets
       .loadAll((loaded, total, key) => {

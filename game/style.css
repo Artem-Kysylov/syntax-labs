@@ -38,8 +38,15 @@ body {
 
 #game-canvas {
   display: block;
-  width: 800px;
-  height: 450px;
+  /* Scale fluidly to fill ~90-95% of the viewport on larger displays instead of
+     capping out at the native 800x450 buffer -- min() picks whichever of the
+     two 16:9-derived candidates fits the bounding box, so the canvas grows as
+     large as it can while never busting either the 92vw or 88vh ceiling. The
+     actual drawing-buffer resolution (canvas.width/height, set in game.js)
+     never changes -- this is a pure CSS upscale, kept crisp by image-rendering
+     below rather than the browser's default smoothing/blur. */
+  width: min(92vw, 88vh * 16 / 9);
+  height: min(88vh, 92vw * 9 / 16);
   max-width: 100vw;
   max-height: 100vh;
   object-fit: contain;
@@ -51,13 +58,34 @@ body {
 }
 
 /* On small / touch screens the decorative frame just eats into space the
-   canvas and virtual controls need, so drop it and go edge-to-edge. */
-@media (max-width: 900px), (pointer: coarse) {
+   canvas and virtual controls need, so drop it and go edge-to-edge -- and let
+   the canvas itself fill the full viewport (object-fit: contain above still
+   keeps its drawn content letterboxed/unstretched either way).
+
+   The extra (max-height: 500px) and (orientation: landscape) clause catches
+   phones held sideways that don't match the other two conditions -- e.g. a
+   wide landscape phone whose viewport width can exceed 900px, in a context
+   where pointer: coarse isn't reported reliably. Without it, such a device
+   fell through to the desktop styling: the decorative border/padding on top
+   of the already-unavoidable 16:9 letterboxing on an ultra-wide phone screen
+   compounded into much bigger black bars than necessary. */
+@media (max-width: 900px), (pointer: coarse), ((max-height: 500px) and (orientation: landscape)) {
   #game-stage {
     padding: 0;
     border: none;
     border-radius: 0;
     box-shadow: none;
+  }
+
+  #game-canvas {
+    width: 100vw;
+    height: 100vh;
+    max-width: 100%;
+    max-height: 100%;
+  }
+
+  #fullscreen-toggle {
+    display: none;
   }
 }
 
@@ -109,6 +137,32 @@ body {
   #game-stage {
     display: none;
   }
+}
+
+/* ---------------------------------------------------------------------
+   Fullscreen toggle (desktop only -- see the touch/mobile media query above,
+   which hides this in favor of the virtual D-pad occupying that screen space)
+   --------------------------------------------------------------------- */
+
+#fullscreen-toggle {
+  position: fixed;
+  bottom: max(12px, env(safe-area-inset-bottom));
+  right: max(12px, env(safe-area-inset-right));
+  z-index: 30;
+  font-family: 'Press Start 2P', monospace;
+  font-size: 9px;
+  color: #50dc78;
+  background: rgba(10, 10, 15, 0.55);
+  border: 2px solid #50dc78;
+  border-radius: 6px;
+  padding: 8px 10px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+#fullscreen-toggle:hover,
+#fullscreen-toggle:focus-visible {
+  background: rgba(80, 220, 120, 0.25);
 }
 
 /* ---------------------------------------------------------------------
