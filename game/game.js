@@ -753,35 +753,45 @@
   // Input
   // ---------------------------------------------------------------------
 
+  // The full gameplay key set -- e.code is the physical key, so it already
+  // reads 'h'/'H'/caps-lock 'H' alike, no separate uppercase handling needed.
+  // Both preventDefault (stop the browser's own default action, e.g. Space
+  // scrolling the page) and stopPropagation (stop the event from bubbling
+  // any further) are called for every one of these on both keydown and
+  // keyup, so a keyboard-driven browser extension listening document/window-
+  // wide -- Vimium's 'f' link-hint overlay is the common case -- never sees
+  // the keystroke to begin with while the canvas has focus.
+  const GAME_KEY_CODES = [
+    'Space',
+    'ArrowUp',
+    'ArrowDown',
+    'ArrowLeft',
+    'ArrowRight',
+    'Enter',
+    'KeyH',
+    'KeyJ',
+    'KeyK',
+    'KeyL',
+    'KeyF',
+  ];
+
   class InputManager {
     constructor() {
       this.keys = new Set();
       this.justPressed = new Set();
       window.addEventListener('keydown', (e) => {
         this._press(e.code);
-        // e.code is the physical key, so it already reads 'h'/'H'/caps-lock 'H' alike --
-        // no separate uppercase handling needed, just the full gameplay key set here so
-        // none of them ever scroll/select the page while playing.
-        if (
-          [
-            'Space',
-            'ArrowUp',
-            'ArrowDown',
-            'ArrowLeft',
-            'ArrowRight',
-            'Enter',
-            'KeyH',
-            'KeyJ',
-            'KeyK',
-            'KeyL',
-            'KeyF',
-          ].includes(e.code)
-        ) {
+        if (GAME_KEY_CODES.includes(e.code)) {
           e.preventDefault();
+          e.stopPropagation();
         }
       });
       window.addEventListener('keyup', (e) => {
         this._release(e.code);
+        if (GAME_KEY_CODES.includes(e.code)) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
       });
     }
 
@@ -3044,6 +3054,15 @@
     drawLoadingScreen(ctx, 0, assets.total, '');
 
     setUpFullscreenToggle();
+
+    // Keyboard focus has to actually be ON the canvas (not just the window
+    // having focus) for the InputManager's stopPropagation to have any
+    // chance of winning a race against a keyboard-driven browser extension
+    // -- grab it immediately, and reclaim it after every click anywhere on
+    // the page (switching tabs/panes or clicking a touch button shifts
+    // focus away otherwise).
+    canvas.focus();
+    document.addEventListener('click', () => canvas.focus());
 
     assets
       .loadAll((loaded, total, key) => {

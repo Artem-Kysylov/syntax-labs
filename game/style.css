@@ -36,6 +36,15 @@ body {
     0 20px 60px rgba(0, 0, 0, 0.6);
 }
 
+/* Keyboard-focusable (tabindex="0" in index.html) so game.js can pull focus
+   here and away from the page/browser chrome, keeping H/J/K/L/F keystrokes
+   from reaching extension key handlers (Vimium link hints, Surfingkeys,
+   etc.) -- the focus ring this would otherwise draw is pure noise on a
+   canvas with no visible text cursor, so it's suppressed below. */
+canvas:focus {
+  outline: none;
+}
+
 #game-canvas {
   display: block;
   /* Scale fluidly to fill ~90-95% of the viewport on larger displays instead of
