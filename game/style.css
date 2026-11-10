@@ -138,27 +138,36 @@ canvas:focus {
 }
 
 /* ---------------------------------------------------------------------
-   iOS Safari (iPhone) has no Fullscreen API at all, so requestFullscreen()
-   silently does nothing there -- these rules are the fallback, toggled by
-   game.js adding/removing .mobile-fullscreen on <body>. 100dvh (rather than
-   100vh) tracks the *current* visible viewport as Safari's address bar
-   collapses, so the stage actually grows to fill the space the real
-   fullscreen API would have claimed on a device that supports it.
+   iOS Safari/Chrome on iPhone has no (working) Fullscreen API, so
+   requestFullscreen() either doesn't exist or silently rejects there --
+   these rules are the pseudo-fullscreen fallback, toggled by game.js adding/
+   removing .ios-fullscreen on both <html> and <body> only once the real API
+   has been tried and failed. 100dvh (rather than 100vh) tracks the
+   *current* visible viewport as Safari's address bar collapses, so the
+   stage actually grows to fill the space the real fullscreen API would have
+   claimed on a device that supports it. The !important rules pin the page
+   itself in place (so the layout underneath can't be scrolled/resized out
+   from under the fallback); the #game-stage/#game-canvas rules then re-fit
+   the actual game content to that pinned viewport the same way the mobile
+   breakpoint above does.
    --------------------------------------------------------------------- */
-body.mobile-fullscreen {
-  position: fixed;
-  top: 0;
-  left: 0;
+html.ios-fullscreen,
+body.ios-fullscreen {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100vw !important;
+  height: 100dvh !important;
+  z-index: 999999 !important;
+  overflow: hidden !important;
+}
+
+body.ios-fullscreen #game-stage {
   width: 100vw;
   height: 100dvh;
 }
 
-body.mobile-fullscreen #game-stage {
-  width: 100vw;
-  height: 100dvh;
-}
-
-body.mobile-fullscreen #game-canvas {
+body.ios-fullscreen #game-canvas {
   width: auto;
   height: 100dvh;
   max-width: 100vw;
@@ -304,31 +313,36 @@ body.mobile-fullscreen #game-canvas {
    vertically, so the full-size (64-78px) keycaps from the desktop/tablet
    sizing above sit right on top of the character and hazards. Shrink them,
    fade them out partway (opacity so the art underneath stays readable
-   through the button), and pin each pad hard into its own corner instead of
-   the softer safe-area-driven offset used above -- H/L bottom-left, J/K
-   bottom-right, exactly where a thumb rests without covering the middle of
-   the screen. #touch-controls itself stays pointer-events:none (see above)
-   so only the buttons themselves -- still pointer-events:auto via .touch-key
-   -- ever intercept a tap; everything else keeps reaching the canvas. */
+   through the button), and push each pad out into its own side margin --
+   the letterboxed black bar left/right of the 16:9 canvas on a wider-than-
+   16:9 phone -- instead of the softer safe-area-driven offset used above:
+   H/L strictly in the left margin, J/K strictly in the right margin, and
+   lifted above the iOS home-indicator gesture bar with the safe-area inset.
+   #touch-controls itself stays pointer-events:none (see above) so only the
+   buttons themselves -- still pointer-events:auto via .touch-key -- ever
+   intercept a tap; everything else keeps reaching the canvas. */
 @media (max-height: 500px) and (orientation: landscape) {
   .touch-pad {
-    bottom: 8px;
+    bottom: calc(18px + env(safe-area-inset-bottom));
     gap: 8px;
   }
 
   .touch-pad-left {
-    left: 8px;
+    left: 12px;
   }
 
   .touch-pad-right {
-    right: 8px;
+    right: 12px;
   }
 
   .touch-key {
-    width: 44px;
-    height: 44px;
-    font-size: 14px;
+    width: 46px;
+    height: 46px;
+    font-size: 15px;
+    border-radius: 8px;
     opacity: 0.65;
+    touch-action: manipulation;
+    user-select: none;
   }
 
   .touch-key-jump {

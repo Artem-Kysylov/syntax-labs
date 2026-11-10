@@ -2973,15 +2973,17 @@
   // in most desktop browsers before page JS ever sees the keydown, so this is
   // strictly best-effort and only fires in the environments that don't.
   //
-  // iOS Safari on iPhone has no Fullscreen API at all (requestFullscreen is
-  // undefined there), so entering/exiting fullscreen also always toggles
-  // body.mobile-fullscreen -- a CSS-only stand-in (see style.css) that
-  // stretches the stage to 100dvh. On platforms that DO support the real API
-  // the two states track each other via the fullscreenchange listener below.
+  // iOS Safari/Chrome on iPhone has no (working) Fullscreen API: requestFullscreen
+  // is either undefined there or exists but rejects when called on a non-video
+  // element. Either way, falls through to toggling .ios-fullscreen on <html> AND
+  // <body> -- a CSS-only stand-in (see style.css) that pins the page in place
+  // and re-fits the stage to 100dvh. On platforms that DO support the real API,
+  // that class is never applied; the two states still track each other via the
+  // fullscreenchange listener below.
   function setUpFullscreenToggle() {
-    const isFullscreenActive = () =>
-      Boolean(document.fullscreenElement || document.webkitFullscreenElement) ||
-      document.body.classList.contains('mobile-fullscreen');
+    const isNativeFullscreen = () => Boolean(document.fullscreenElement || document.webkitFullscreenElement);
+    const isIosFallbackActive = () => document.body.classList.contains('ios-fullscreen');
+    const isFullscreenActive = () => isNativeFullscreen() || isIosFallbackActive();
 
     const button = document.getElementById('fullscreen-btn');
 
@@ -2990,25 +2992,39 @@
       button.textContent = isFullscreenActive() ? '🗗' : '⛶';
     };
 
+    const applyIosFallback = () => {
+      document.documentElement.classList.add('ios-fullscreen');
+      document.body.classList.add('ios-fullscreen');
+      window.scrollTo(0, 1);
+      updateIcon();
+    };
+
+    const removeIosFallback = () => {
+      document.documentElement.classList.remove('ios-fullscreen');
+      document.body.classList.remove('ios-fullscreen');
+    };
+
     const enterFullscreen = () => {
       const root = document.documentElement;
       const request = root.requestFullscreen || root.webkitRequestFullscreen;
-      if (request) {
-        try {
-          const result = request.call(root);
-          if (result && result.catch) result.catch(() => {});
-        } catch (err) {
-          /* ignore -- falls through to the CSS fallback below */
-        }
+      if (!request) {
+        applyIosFallback();
+        return;
       }
-      document.body.classList.add('mobile-fullscreen');
-      window.scrollTo(0, 1);
+      try {
+        const result = request.call(root);
+        if (result && result.catch) {
+          result.catch(() => applyIosFallback());
+        }
+      } catch (err) {
+        applyIosFallback();
+      }
       updateIcon();
     };
 
     const exitFullscreen = () => {
       const exit = document.exitFullscreen || document.webkitExitFullscreen;
-      if (exit && (document.fullscreenElement || document.webkitFullscreenElement)) {
+      if (exit && isNativeFullscreen()) {
         try {
           const result = exit.call(document);
           if (result && result.catch) result.catch(() => {});
@@ -3016,7 +3032,7 @@
           /* ignore */
         }
       }
-      document.body.classList.remove('mobile-fullscreen');
+      removeIosFallback();
       updateIcon();
     };
 
