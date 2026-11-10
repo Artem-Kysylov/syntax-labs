@@ -2962,19 +2962,72 @@
   // path -- F11 is intercepted as the browser's OWN native fullscreen shortcut
   // in most desktop browsers before page JS ever sees the keydown, so this is
   // strictly best-effort and only fires in the environments that don't.
+  //
+  // iOS Safari on iPhone has no Fullscreen API at all (requestFullscreen is
+  // undefined there), so entering/exiting fullscreen also always toggles
+  // body.fullscreen-active -- a CSS-only stand-in (see style.css) that
+  // stretches the stage to 100dvh. On platforms that DO support the real API
+  // the two states track each other via the fullscreenchange listener below.
   function setUpFullscreenToggle() {
+    const isFullscreenActive = () =>
+      Boolean(document.fullscreenElement || document.webkitFullscreenElement) ||
+      document.body.classList.contains('fullscreen-active');
+
+    const mobileButton = document.getElementById('fullscreen-btn');
+
+    const updateIcon = () => {
+      if (!mobileButton) return;
+      mobileButton.textContent = isFullscreenActive() ? '🗗' : '⛶';
+    };
+
+    const enterFullscreen = () => {
+      const root = document.documentElement;
+      const request = root.requestFullscreen || root.webkitRequestFullscreen;
+      if (request) {
+        try {
+          const result = request.call(root);
+          if (result && result.catch) result.catch(() => {});
+        } catch (err) {
+          /* ignore -- falls through to the CSS fallback below */
+        }
+      }
+      document.body.classList.add('fullscreen-active');
+      window.scrollTo(0, 1);
+      updateIcon();
+    };
+
+    const exitFullscreen = () => {
+      const exit = document.exitFullscreen || document.webkitExitFullscreen;
+      if (exit && (document.fullscreenElement || document.webkitFullscreenElement)) {
+        try {
+          const result = exit.call(document);
+          if (result && result.catch) result.catch(() => {});
+        } catch (err) {
+          /* ignore */
+        }
+      }
+      document.body.classList.remove('fullscreen-active');
+      updateIcon();
+    };
+
     const toggleFullscreen = () => {
-      if (document.fullscreenElement) {
-        document.exitFullscreen().catch(() => {});
+      if (isFullscreenActive()) {
+        exitFullscreen();
       } else {
-        document.documentElement.requestFullscreen().catch(() => {});
+        enterFullscreen();
       }
     };
 
-    const button = document.getElementById('fullscreen-toggle');
-    if (button) {
-      button.addEventListener('click', toggleFullscreen);
+    const desktopButton = document.getElementById('fullscreen-toggle');
+    if (desktopButton) {
+      desktopButton.addEventListener('click', toggleFullscreen);
     }
+    if (mobileButton) {
+      mobileButton.addEventListener('click', toggleFullscreen);
+    }
+
+    document.addEventListener('fullscreenchange', updateIcon);
+    document.addEventListener('webkitfullscreenchange', updateIcon);
 
     window.addEventListener('keydown', (e) => {
       if (e.key === 'F11') {
