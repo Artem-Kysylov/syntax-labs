@@ -58,38 +58,35 @@ body {
 }
 
 /* ---------------------------------------------------------------------
-   Mobile fullscreen toggle (top-right HUD corner) -- hidden by default,
-   shown only inside the mobile/touch media query below, where the
-   decorative bottom-right #fullscreen-toggle button is hidden instead.
+   Fullscreen toggle -- a single button, a direct child of <body> (not
+   #game-stage), fixed to the viewport so it stays on top and reachable
+   regardless of breakpoint, #game-stage's own sizing, or fullscreen state.
    --------------------------------------------------------------------- */
 
 .fullscreen-btn {
-  display: none;
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  z-index: 100;
-  width: 36px;
-  height: 36px;
-  align-items: center;
-  justify-content: center;
-  pointer-events: auto;
+  position: fixed;
+  top: 10px;
+  right: 10px;
+  z-index: 99999;
+  background: rgba(0, 0, 0, 0.7);
+  border: 1px solid #00ff66;
+  color: #00ff66;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 16px;
+  font-family: 'Press Start 2P', monospace;
+  line-height: 1;
+  cursor: pointer;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
   -webkit-user-select: none;
   user-select: none;
-  font-family: 'Press Start 2P', monospace;
-  font-size: 16px;
-  line-height: 1;
-  color: #50dc78;
-  background: rgba(10, 10, 15, 0.55);
-  border: 2px solid #50dc78;
-  border-radius: 6px;
-  padding: 0;
 }
 
+.fullscreen-btn:hover,
+.fullscreen-btn:focus-visible,
 .fullscreen-btn:active {
-  background: rgba(80, 220, 120, 0.35);
+  background: rgba(0, 255, 102, 0.25);
 }
 
 /* On small / touch screens the decorative frame just eats into space the
@@ -110,43 +107,50 @@ body {
     border: none;
     border-radius: 0;
     box-shadow: none;
-  }
-
-  #game-canvas {
     width: 100vw;
-    height: 100vh;
-    max-width: 100%;
-    max-height: 100%;
+    height: 100dvh;
   }
 
-  #fullscreen-toggle {
-    display: none;
-  }
-
-  .fullscreen-btn {
-    display: flex;
+  /* height:100dvh + width:auto (clamped by max-width) lets the browser derive
+     the box from the 16:9 aspect-ratio set above, so the canvas always fills
+     the full viewport HEIGHT with no internal letterboxing -- any leftover
+     gap is a symmetric, minimal margin on the sides only (unavoidable unless
+     the device itself happens to be exactly 16:9), not the previous
+     width:100vw + height:100vh pairing, which forced a box that didn't match
+     the drawing buffer's aspect ratio and (on top of the usual 100vh-vs-
+     dynamic-toolbar mismatch on mobile Safari) produced much bigger blank
+     margins than the content's actual aspect ratio requires. */
+  #game-canvas {
+    width: auto;
+    height: 100dvh;
+    max-width: 100vw;
+    max-height: 100dvh;
   }
 }
 
 /* ---------------------------------------------------------------------
    iOS Safari (iPhone) has no Fullscreen API at all, so requestFullscreen()
    silently does nothing there -- these rules are the fallback, toggled by
-   game.js adding/removing .fullscreen-active on <body>. 100dvh (rather than
+   game.js adding/removing .mobile-fullscreen on <body>. 100dvh (rather than
    100vh) tracks the *current* visible viewport as Safari's address bar
    collapses, so the stage actually grows to fill the space the real
    fullscreen API would have claimed on a device that supports it.
    --------------------------------------------------------------------- */
-body.fullscreen-active,
-body.fullscreen-active #game-stage {
+body.mobile-fullscreen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
   height: 100dvh;
 }
 
-body.fullscreen-active #game-stage {
+body.mobile-fullscreen #game-stage {
   width: 100vw;
+  height: 100dvh;
 }
 
-body.fullscreen-active #game-canvas {
-  width: 100vw;
+body.mobile-fullscreen #game-canvas {
+  width: auto;
   height: 100dvh;
   max-width: 100vw;
   max-height: 100dvh;
@@ -200,32 +204,6 @@ body.fullscreen-active #game-canvas {
   #game-stage {
     display: none;
   }
-}
-
-/* ---------------------------------------------------------------------
-   Fullscreen toggle (desktop only -- see the touch/mobile media query above,
-   which hides this in favor of the virtual D-pad occupying that screen space)
-   --------------------------------------------------------------------- */
-
-#fullscreen-toggle {
-  position: fixed;
-  bottom: max(12px, env(safe-area-inset-bottom));
-  right: max(12px, env(safe-area-inset-right));
-  z-index: 30;
-  font-family: 'Press Start 2P', monospace;
-  font-size: 9px;
-  color: #50dc78;
-  background: rgba(10, 10, 15, 0.55);
-  border: 2px solid #50dc78;
-  border-radius: 6px;
-  padding: 8px 10px;
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-}
-
-#fullscreen-toggle:hover,
-#fullscreen-toggle:focus-visible {
-  background: rgba(80, 220, 120, 0.25);
 }
 
 /* ---------------------------------------------------------------------
@@ -311,4 +289,42 @@ body.fullscreen-active #game-canvas {
 /* Hide the virtual pads entirely unless JS detects touch support. */
 #touch-controls[hidden] {
   display: none;
+}
+
+/* On short mobile-landscape screens the playable field is already cramped
+   vertically, so the full-size (64-78px) keycaps from the desktop/tablet
+   sizing above sit right on top of the character and hazards. Shrink them,
+   fade them out partway (opacity so the art underneath stays readable
+   through the button), and pin each pad hard into its own corner instead of
+   the softer safe-area-driven offset used above -- H/L bottom-left, J/K
+   bottom-right, exactly where a thumb rests without covering the middle of
+   the screen. #touch-controls itself stays pointer-events:none (see above)
+   so only the buttons themselves -- still pointer-events:auto via .touch-key
+   -- ever intercept a tap; everything else keeps reaching the canvas. */
+@media (max-height: 500px) and (orientation: landscape) {
+  .touch-pad {
+    bottom: 8px;
+    gap: 8px;
+  }
+
+  .touch-pad-left {
+    left: 8px;
+  }
+
+  .touch-pad-right {
+    right: 8px;
+  }
+
+  .touch-key {
+    width: 44px;
+    height: 44px;
+    font-size: 14px;
+    opacity: 0.65;
+  }
+
+  .touch-key-jump {
+    width: 48px;
+    height: 48px;
+    font-size: 15px;
+  }
 }

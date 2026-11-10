@@ -2965,19 +2965,19 @@
   //
   // iOS Safari on iPhone has no Fullscreen API at all (requestFullscreen is
   // undefined there), so entering/exiting fullscreen also always toggles
-  // body.fullscreen-active -- a CSS-only stand-in (see style.css) that
+  // body.mobile-fullscreen -- a CSS-only stand-in (see style.css) that
   // stretches the stage to 100dvh. On platforms that DO support the real API
   // the two states track each other via the fullscreenchange listener below.
   function setUpFullscreenToggle() {
     const isFullscreenActive = () =>
       Boolean(document.fullscreenElement || document.webkitFullscreenElement) ||
-      document.body.classList.contains('fullscreen-active');
+      document.body.classList.contains('mobile-fullscreen');
 
-    const mobileButton = document.getElementById('fullscreen-btn');
+    const button = document.getElementById('fullscreen-btn');
 
     const updateIcon = () => {
-      if (!mobileButton) return;
-      mobileButton.textContent = isFullscreenActive() ? '🗗' : '⛶';
+      if (!button) return;
+      button.textContent = isFullscreenActive() ? '🗗' : '⛶';
     };
 
     const enterFullscreen = () => {
@@ -2991,7 +2991,7 @@
           /* ignore -- falls through to the CSS fallback below */
         }
       }
-      document.body.classList.add('fullscreen-active');
+      document.body.classList.add('mobile-fullscreen');
       window.scrollTo(0, 1);
       updateIcon();
     };
@@ -3006,7 +3006,7 @@
           /* ignore */
         }
       }
-      document.body.classList.remove('fullscreen-active');
+      document.body.classList.remove('mobile-fullscreen');
       updateIcon();
     };
 
@@ -3018,12 +3018,8 @@
       }
     };
 
-    const desktopButton = document.getElementById('fullscreen-toggle');
-    if (desktopButton) {
-      desktopButton.addEventListener('click', toggleFullscreen);
-    }
-    if (mobileButton) {
-      mobileButton.addEventListener('click', toggleFullscreen);
+    if (button) {
+      button.addEventListener('click', toggleFullscreen);
     }
 
     document.addEventListener('fullscreenchange', updateIcon);
