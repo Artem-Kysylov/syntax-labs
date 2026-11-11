@@ -1206,61 +1206,13 @@
     }
   }
 
-  // 8x8 pixel-grid speaker silhouette (box + cone), drawn cell-by-cell so it
-  // reads as "pixelated" rather than a smooth icon-font glyph.
-  const MUTE_ICON_CELL = 2;
-  const MUTE_ICON_MARGIN = 6;
-  const MUTE_ICON_PATTERN = [
-    '......##',
-    '.....###',
-    '..##.###',
-    '.###.###',
-    '.###.###',
-    '..##.###',
-    '.....###',
-    '......##',
-  ];
-
-  // Drawn globally (by Game, over whatever scene is active) so it's visible
-  // everywhere; other top-right HUD elements leave MUTE_ICON_RESERVED_WIDTH
-  // of clearance so nothing overlaps it.
-  const MUTE_ICON_RESERVED_WIDTH = 34;
-
-  function drawMuteIcon(ctx, muted) {
-    const cell = MUTE_ICON_CELL;
-    const gridW = MUTE_ICON_PATTERN[0].length;
-    const gridH = MUTE_ICON_PATTERN.length;
-    const extraW = muted ? 0 : cell * 4; // room for the sound-wave marks
-    const totalW = gridW * cell + extraW;
-    const x = CANVAS_WIDTH - MUTE_ICON_MARGIN - totalW;
-    const y = MUTE_ICON_MARGIN;
-    const color = muted ? '#dc5050' : '#50dc78';
-
-    ctx.save();
-    ctx.fillStyle = color;
-    for (let row = 0; row < gridH; row++) {
-      for (let col = 0; col < gridW; col++) {
-        if (MUTE_ICON_PATTERN[row][col] === '#') {
-          ctx.fillRect(x + col * cell, y + row * cell, cell, cell);
-        }
-      }
-    }
-
-    if (muted) {
-      ctx.strokeStyle = color;
-      ctx.lineWidth = cell;
-      ctx.beginPath();
-      ctx.moveTo(x + 5 * cell, y + 1 * cell);
-      ctx.lineTo(x + 8 * cell, y + 7 * cell);
-      ctx.moveTo(x + 8 * cell, y + 1 * cell);
-      ctx.lineTo(x + 5 * cell, y + 7 * cell);
-      ctx.stroke();
-    } else {
-      ctx.fillRect(x + gridW * cell + cell, y + 3 * cell, cell, cell * 2);
-      ctx.fillRect(x + gridW * cell + cell * 3, y + 2 * cell, cell, cell * 4);
-    }
-    ctx.restore();
-  }
+  // The mute toggle is now a real #mute-btn DOM button (see index.html/
+  // setUpMuteToggle below) rather than a canvas-drawn icon, so it's a
+  // genuinely tappable/clickable element instead of inert pixels. Other
+  // top-right HUD text still leaves this much clearance so it doesn't render
+  // underneath the real #mute-btn/#fullscreen-btn overlay sitting above the
+  // canvas in screen space.
+  const TOP_RIGHT_UI_RESERVED_WIDTH = 90;
 
   class Collectible {
     constructor({ x, y, type = 'coin' }) {
@@ -2354,7 +2306,7 @@
       ctx.fillStyle = '#f0d050';
       ctx.fillText(
         `CYBERCOINS ${String(this.cybercoins).padStart(4, '0')}`,
-        CANVAS_WIDTH - MUTE_ICON_RESERVED_WIDTH,
+        CANVAS_WIDTH - TOP_RIGHT_UI_RESERVED_WIDTH,
         12
       );
 
@@ -2819,7 +2771,7 @@
       const gap = 4;
       const maxTicks = BOSS.maxHp;
       const totalWidth = maxTicks * segW + (maxTicks - 1) * gap;
-      const bossX = CANVAS_WIDTH - MUTE_ICON_RESERVED_WIDTH - totalWidth;
+      const bossX = CANVAS_WIDTH - TOP_RIGHT_UI_RESERVED_WIDTH - totalWidth;
       const pipes = '|'.repeat(this.boss.hp) + ' '.repeat(Math.max(0, maxTicks - this.boss.hp));
       drawHealthTicks(ctx, {
         x: bossX,
@@ -2871,6 +2823,11 @@
       this.currentScene = null;
 
       this.ctx.imageSmoothingEnabled = false;
+
+      // Kept in sync every frame in _render() below, regardless of whether
+      // mute was toggled via this button, the KeyM shortcut, or (in
+      // principle) some other future input path.
+      this.muteButton = document.getElementById('mute-btn');
     }
 
     setScene(key) {
@@ -2932,7 +2889,9 @@
       if (this.currentScene && this.currentScene.render) {
         this.currentScene.render(ctx);
       }
-      drawMuteIcon(ctx, this.assets.muted);
+      if (this.muteButton) {
+        this.muteButton.textContent = this.assets.muted ? '🔇' : '🔊';
+      }
     }
   }
 
@@ -2968,88 +2927,128 @@
     );
   }
 
+  // Wires a top-right UI button (#mute-btn, #fullscreen-btn) so a tap/click
+  // reliably runs `action` exactly ONCE per gesture, and never bubbles into
+  // the canvas or document-level listeners sitting underneath (the global
+  // touchmove scroll-blocker, the document click -> canvas.focus() reclaim,
+  // a browser extension's own key/click handlers, etc). pointerdown and
+  // touchstart are purely defensive -- preventDefault + stopPropagation,
+  // nothing else -- because binding `action` itself to all three would
+  // double-fire it for a real mouse (pointerdown -> click is ONE physical
+  // click); only 'click' actually runs it. preventDefault on pointerdown
+  // also keeps these chrome buttons from stealing keyboard focus away from
+  // the canvas when tapped/clicked.
+  function wireUiButton(button, action) {
+    if (!button) return;
+    const guard = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+    };
+    button.addEventListener('pointerdown', guard);
+    button.addEventListener('touchstart', guard, { passive: false });
+    button.addEventListener('click', (e) => {
+      guard(e);
+      action();
+    });
+  }
+
+  // The mute toggle is a real DOM button (#mute-btn) rather than the old
+  // canvas-drawn icon, so it's actually tappable/clickable on its own, not
+  // just reachable via the KeyM shortcut (still handled in Game#_loop).
+  function setUpMuteToggle(assets) {
+    const button = document.getElementById('mute-btn');
+    if (!button) return;
+
+    const updateIcon = () => {
+      button.textContent = assets.muted ? '🔇' : '🔊';
+    };
+
+    wireUiButton(button, () => {
+      assets.toggleMute();
+      updateIcon();
+    });
+
+    updateIcon();
+  }
+
   // Borderless fullscreen for immersion/recording. The button is the reliable
   // path -- F11 is intercepted as the browser's OWN native fullscreen shortcut
   // in most desktop browsers before page JS ever sees the keydown, so this is
   // strictly best-effort and only fires in the environments that don't.
   //
-  // iOS Safari/Chrome on iPhone has no (working) Fullscreen API: requestFullscreen
-  // is either undefined there or exists but rejects when called on a non-video
-  // element. Either way, falls through to toggling .ios-fullscreen on <html> AND
-  // <body> -- a CSS-only stand-in (see style.css) that pins the page in place
-  // and re-fits the stage to 100dvh. On platforms that DO support the real API,
-  // that class is never applied; the two states still track each other via the
-  // fullscreenchange listener below.
+  // .fullscreen-mode (see style.css) is toggled unconditionally on every
+  // click -- the CSS-only presentation layer that actually makes the page go
+  // edge-to-edge, applied immediately and synchronously. The real Fullscreen
+  // API is ALSO always attempted alongside it (not only as a fallback): on
+  // platforms that support it, this additionally sheds browser chrome; on
+  // iOS Safari/Chrome -- where requestFullscreen is either undefined or
+  // exists but silently rejects when called on a non-video element -- it's
+  // a harmless no-op, and the CSS layer is all the user ever sees.
   function setUpFullscreenToggle() {
-    const isNativeFullscreen = () => Boolean(document.fullscreenElement || document.webkitFullscreenElement);
-    const isIosFallbackActive = () => document.body.classList.contains('ios-fullscreen');
-    const isFullscreenActive = () => isNativeFullscreen() || isIosFallbackActive();
-
     const button = document.getElementById('fullscreen-btn');
+
+    const isFullscreenActive = () =>
+      Boolean(document.fullscreenElement || document.webkitFullscreenElement) ||
+      document.body.classList.contains('fullscreen-mode');
 
     const updateIcon = () => {
       if (!button) return;
       button.textContent = isFullscreenActive() ? '🗗' : '⛶';
     };
 
-    const applyIosFallback = () => {
-      document.documentElement.classList.add('ios-fullscreen');
-      document.body.classList.add('ios-fullscreen');
-      window.scrollTo(0, 1);
-      updateIcon();
-    };
+    function toggleFullscreen() {
+      const isFull = document.body.classList.toggle('fullscreen-mode');
 
-    const removeIosFallback = () => {
-      document.documentElement.classList.remove('ios-fullscreen');
-      document.body.classList.remove('ios-fullscreen');
-    };
-
-    const enterFullscreen = () => {
-      const root = document.documentElement;
-      const request = root.requestFullscreen || root.webkitRequestFullscreen;
-      if (!request) {
-        applyIosFallback();
-        return;
-      }
-      try {
-        const result = request.call(root);
-        if (result && result.catch) {
-          result.catch(() => applyIosFallback());
+      if (document.fullscreenElement || document.webkitFullscreenElement) {
+        const exit = document.exitFullscreen || document.webkitExitFullscreen;
+        if (exit) {
+          try {
+            const result = exit.call(document);
+            if (result && result.catch) result.catch(() => {});
+          } catch (err) {
+            /* ignore */
+          }
         }
-      } catch (err) {
-        applyIosFallback();
-      }
-      updateIcon();
-    };
-
-    const exitFullscreen = () => {
-      const exit = document.exitFullscreen || document.webkitExitFullscreen;
-      if (exit && isNativeFullscreen()) {
-        try {
-          const result = exit.call(document);
-          if (result && result.catch) result.catch(() => {});
-        } catch (err) {
-          /* ignore */
-        }
-      }
-      removeIosFallback();
-      updateIcon();
-    };
-
-    const toggleFullscreen = () => {
-      if (isFullscreenActive()) {
-        exitFullscreen();
       } else {
-        enterFullscreen();
+        const root = document.documentElement;
+        const request = root.requestFullscreen || root.webkitRequestFullscreen;
+        if (request) {
+          try {
+            const result = request.call(root);
+            if (result && result.catch) result.catch(() => {});
+          } catch (err) {
+            /* ignore -- the .fullscreen-mode class above is already doing the work */
+          }
+        }
       }
-    };
 
-    if (button) {
-      button.addEventListener('click', toggleFullscreen);
+      if (isFull) {
+        // Nudges Safari's address bar out of the way so the 100dvh fallback
+        // in style.css actually gets the space it's asking for.
+        window.scrollTo(0, 1);
+      }
+
+      // Lets anything else listening for resize (e.g. a canvas-size
+      // recompute) know the usable viewport just changed, even though no
+      // real window resize happened.
+      window.dispatchEvent(new Event('resize'));
+
+      updateIcon();
     }
 
-    document.addEventListener('fullscreenchange', updateIcon);
-    document.addEventListener('webkitfullscreenchange', updateIcon);
+    wireUiButton(button, toggleFullscreen);
+
+    // The browser's own fullscreen state can change independently of this
+    // button -- Esc, F11, a window-manager shortcut. If native fullscreen
+    // just ended that way, don't leave .fullscreen-mode's layout stuck on.
+    const reconcileAfterNativeChange = () => {
+      if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+        document.body.classList.remove('fullscreen-mode');
+      }
+      updateIcon();
+    };
+    document.addEventListener('fullscreenchange', reconcileAfterNativeChange);
+    document.addEventListener('webkitfullscreenchange', reconcileAfterNativeChange);
 
     window.addEventListener('keydown', (e) => {
       if (e.key === 'F11') {
@@ -3070,6 +3069,7 @@
     drawLoadingScreen(ctx, 0, assets.total, '');
 
     setUpFullscreenToggle();
+    setUpMuteToggle(assets);
 
     // Keyboard focus has to actually be ON the canvas (not just the window
     // having focus) for the InputManager's stopPropagation to have any
