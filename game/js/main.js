@@ -20,15 +20,12 @@ window.addEventListener('DOMContentLoaded', () => {
   setUpFullscreenToggle();
   setUpMuteToggle(assets);
 
-  // Keyboard focus has to actually be ON the canvas (not just the window
-  // having focus) for the InputManager's stopPropagation to have any
-  // chance of winning a race against a keyboard-driven browser extension
-  // -- grab it immediately, and reclaim it after every click anywhere on
-  // the page (switching tabs/panes or clicking a touch button shifts
-  // focus away otherwise).
-  canvas.focus();
-  document.addEventListener('click', () => canvas.focus());
-
+  // Keyboard focus itself is no longer grabbed here -- InputManager (see
+  // input.js, constructed below once Game is created) takes over entirely:
+  // a capture-phase window listener intercepts game keys regardless of
+  // focus, and on desktop it keeps a hidden focus-trap input focused so
+  // extensions like Vimium see an editable field and stand down. The canvas
+  // keeps tabindex="0" purely for accessibility/tab order.
   assets
     .loadAll((loaded, total, key) => {
       drawLoadingScreen(ctx, loaded, total, key);

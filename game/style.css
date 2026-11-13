@@ -36,13 +36,32 @@ body {
     0 20px 60px rgba(0, 0, 0, 0.6);
 }
 
-/* Keyboard-focusable (tabindex="0" in index.html) so game.js can pull focus
-   here and away from the page/browser chrome, keeping H/J/K/L/F keystrokes
-   from reaching extension key handlers (Vimium link hints, Surfingkeys,
-   etc.) -- the focus ring this would otherwise draw is pure noise on a
-   canvas with no visible text cursor, so it's suppressed below. */
+/* Keyboard-focusable (tabindex="0" in index.html), mainly for accessibility/
+   tab order -- actual keyboard capture during gameplay lives on #vim-trap
+   below instead (see js/input.js), so this ring would otherwise draw on a
+   canvas with no visible text cursor; suppressed here either way. */
 canvas:focus {
   outline: none;
+}
+
+/* Off-screen focus-trap input -- see js/input.js and the comment on it in
+   index.html. opacity: 0 (not display: none / visibility: hidden) is
+   required: either of those would make the element unfocusable, defeating
+   the whole point. pointer-events: none keeps it from ever intercepting a
+   real click/tap meant for the canvas or UI underneath it. */
+.vim-trap {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: 0;
+  border: none;
+  outline: none;
+  opacity: 0;
+  background: transparent;
+  pointer-events: none;
 }
 
 #game-canvas {

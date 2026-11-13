@@ -1,14 +1,10 @@
 // Trapped in Vim :: :wq!
-// Keyboard + virtual touch-button input handling.
+// Keyboard + virtual touch-button input handling, hardened against
+// keyboard-driven browser extensions (Vimium's Link Hints/'f', Surfingkeys,
+// etc.) stealing H/J/K/L/F before the game ever sees them.
 
 // The full gameplay key set -- e.code is the physical key, so it already
 // reads 'h'/'H'/caps-lock 'H' alike, no separate uppercase handling needed.
-// Both preventDefault (stop the browser's own default action, e.g. Space
-// scrolling the page) and stopPropagation (stop the event from bubbling
-// any further) are called for every one of these on both keydown and
-// keyup, so a keyboard-driven browser extension listening document/window-
-// wide -- Vimium's 'f' link-hint overlay is the common case -- never sees
-// the keystroke to begin with while the canvas has focus.
 export const GAME_KEY_CODES = [
   'Space',
   'ArrowUp',
@@ -23,24 +19,100 @@ export const GAME_KEY_CODES = [
   'KeyF',
 ];
 
+// Shared by input.js and ui.js so "is this a touch device" is answered the
+// same way everywhere -- the vim-trap focus trick is desktop-only (see
+// InputManager#_setUpVimTrap) and the on-screen D-pad is touch-only (see
+// ui.js#setUpTouchControls); both need to agree on which device they're on.
+export function isTouchDevice() {
+  return 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+}
+
 export class InputManager {
   constructor() {
     this.keys = new Set();
     this.justPressed = new Set();
-    window.addEventListener('keydown', (e) => {
-      this._press(e.code);
-      if (GAME_KEY_CODES.includes(e.code)) {
-        e.preventDefault();
-        e.stopPropagation();
-      }
-    });
-    window.addEventListener('keyup', (e) => {
-      this._release(e.code);
-      if (GAME_KEY_CODES.includes(e.code)) {
-        e.preventDefault();
-        e.stopPropagation();
-      }
-    });
+
+    // Layer 1: capture-phase + stopImmediatePropagation on `window`.
+    //
+    // The capture phase always runs window -> document -> ... -> target,
+    // in that order, regardless of when each listener was registered --
+    // unlike the bubble phase (target -> ... -> document -> window), where
+    // a content script sitting on `document` would see the keystroke
+    // *before* a plain window-level bubble listener ever ran. Attaching
+    // here, in capture, on `window` specifically (the outermost node) wins
+    // that ordering unconditionally against anything on `document` or
+    // deeper, no matter whether that extension's own listener is itself
+    // capture or bubble. stopImmediatePropagation (not just stopPropagation)
+    // additionally blocks any other listener still queued on `window`
+    // itself from ever running.
+    //
+    // This works independently of DOM focus -- it's a hard backstop even if
+    // focus is ever (briefly) not on #vim-trap below.
+    window.addEventListener(
+      'keydown',
+      (e) => {
+        this._press(e.code);
+        if (GAME_KEY_CODES.includes(e.code)) {
+          e.preventDefault();
+          e.stopImmediatePropagation();
+        }
+      },
+      { capture: true }
+    );
+    window.addEventListener(
+      'keyup',
+      (e) => {
+        this._release(e.code);
+        if (GAME_KEY_CODES.includes(e.code)) {
+          e.preventDefault();
+          e.stopImmediatePropagation();
+        }
+      },
+      { capture: true }
+    );
+
+    // Layer 2: a focused, genuinely-editable element.
+    //
+    // Layer 1 stops the keystroke from reaching an extension's handler, but
+    // some extensions decide whether to act at all by checking
+    // document.activeElement up front (Vimium drops into its own "insert
+    // mode" -- hands off entirely -- whenever focus sits on an editable
+    // field). Keeping a hidden text input focused during gameplay is what
+    // actually satisfies that check, rather than just racing it.
+    this.isTouchDevice = isTouchDevice();
+    this.vimTrap = document.getElementById('vim-trap');
+    this._setUpVimTrap();
+  }
+
+  // No-ops entirely on touch devices: focusing a real <input> on iOS/Android
+  // pops the on-screen keyboard, and Link Hint-style extensions aren't a
+  // concern there (they're desktop browser extensions), so there's nothing
+  // to trade off by skipping it.
+  _setUpVimTrap() {
+    if (this.isTouchDevice || !this.vimTrap) return;
+
+    this.focusTrap();
+
+    // Re-grab focus whenever something plausibly stole it: clicking/tapping
+    // the canvas or page chrome, or the whole window regaining focus (e.g.
+    // alt-tabbing back). A bubble-phase, document-wide listener is enough --
+    // it naturally skips anything that already stopped propagation itself
+    // (the mute/fullscreen buttons' own handlers, see ui.js#wireUiButton).
+    document.addEventListener('pointerdown', () => this.focusTrap());
+    window.addEventListener('focus', () => this.focusTrap());
+  }
+
+  // Public so scene transitions can re-assert focus too (see Game#setScene
+  // in game.js) -- entering a new scene never itself moves DOM focus today,
+  // but a scene is exactly the kind of moment where focus could have
+  // drifted since the last re-grab, so it's a natural place to double-check.
+  // Safe to call unconditionally (including on touch devices, where it's a
+  // deliberate no-op) rather than making every call site check first.
+  focusTrap() {
+    if (this.isTouchDevice || !this.vimTrap) return;
+    if (document.activeElement !== this.vimTrap) {
+      this.vimTrap.focus({ preventScroll: true });
+    }
   }
 
   _press(code) {

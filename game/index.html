@@ -13,6 +13,25 @@
 <body>
   <div id="game-stage">
     <canvas id="game-canvas" width="800" height="450" tabindex="0"></canvas>
+    <!-- Focus-trap for H/J/K/L/F -- see js/input.js. On desktop this stays
+         focused during gameplay instead of the canvas: it's a genuinely
+         editable element, so Vimium (and similar extensions) see an active
+         text field and drop into their own "insert mode", standing down
+         entirely instead of racing our keydown handler for link hints /
+         scrolling. Never focused on touch devices (see InputManager) so
+         iOS/Android never pop the on-screen keyboard for it. -->
+    <input
+      type="text"
+      id="vim-trap"
+      class="vim-trap"
+      tabindex="-1"
+      inputmode="none"
+      autocomplete="off"
+      autocapitalize="off"
+      autocorrect="off"
+      spellcheck="false"
+      aria-hidden="true"
+    />
     <div id="touch-controls" hidden>
       <div class="touch-pad touch-pad-left">
         <button type="button" class="touch-key" data-key="KeyH" aria-label="Move left">H</button>

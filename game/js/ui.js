@@ -2,6 +2,7 @@
 // DOM/UI wiring: loading screen, touch controls, mute + fullscreen toggles.
 
 import { CANVAS_WIDTH, CANVAS_HEIGHT } from './constants.js';
+import { isTouchDevice } from './input.js';
 
 // ---------------------------------------------------------------------
 // Loading screen (drawn directly to canvas while assets stream in)
@@ -53,12 +54,18 @@ export function drawLoadingScreen(ctx, loaded, total, label) {
 // ---------------------------------------------------------------------
 
 export function setUpTouchControls(game) {
-  const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-  if (!isTouchDevice) return;
+  if (!isTouchDevice()) return;
 
   // Belt-and-suspenders against scroll/pinch-zoom/rubber-band bounce, on top of
   // the touch-action: none already set in CSS.
   document.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
+
+  // InputManager already skips focusing #vim-trap on a touch device, but
+  // blur it defensively too in case anything (a stray Tab, browser autofill,
+  // etc.) ever lands focus on it -- a focused <input> on iOS/Android pops
+  // the on-screen keyboard, which would eat screen space and steal taps.
+  const vimTrap = document.getElementById('vim-trap');
+  if (vimTrap) vimTrap.blur();
 
   const controls = document.getElementById('touch-controls');
   if (!controls) return;
@@ -83,8 +90,8 @@ export function setUpTouchControls(game) {
 // Wires a top-right UI button (#mute-btn, #fullscreen-btn) so a tap/click
 // reliably runs `action` exactly ONCE per gesture, and never bubbles into
 // the canvas or document-level listeners sitting underneath (the global
-// touchmove scroll-blocker, the document click -> canvas.focus() reclaim,
-// a browser extension's own key/click handlers, etc).
+// touchmove scroll-blocker, the document pointerdown -> #vim-trap focus
+// reclaim in input.js, a browser extension's own key/click handlers, etc).
 //
 // iOS Safari is unreliable about the synthetic 'click' a tap is supposed
 // to produce: calling preventDefault() on touchstart (needed below to stop

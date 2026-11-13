@@ -57,6 +57,9 @@ export class Game {
     if (this.currentScene.enter) {
       this.currentScene.enter();
     }
+    // Re-assert the vim-trap's focus on every transition (no-op on touch
+    // devices) -- see InputManager#focusTrap in input.js.
+    this.input.focusTrap();
   }
 
   start(initialScene = SceneState.START_MENU) {
