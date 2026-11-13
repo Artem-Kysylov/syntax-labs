@@ -56,6 +56,16 @@
     sfx_teleport: `${ASSET_ROOT}/audio/sfx/sfx_teleport.wav`,
   };
 
+  // Rapid-fire/overlapping one-shots -- decoded into AudioBuffers and played
+  // through the Web Audio API (see AssetManager) instead of cloned
+  // HTMLAudioElements, since on iOS Safari overlapping cloneNode().play()
+  // calls are prone to silently dropping sounds. Everything else (menu
+  // blips, one-off jingles, and sfx_jetpack, which is also used as a
+  // sustained loop via playMusic()/stopMusic()) stays on the old
+  // HTMLAudioElement path -- they're never triggered rapidly enough to hit
+  // the same issue.
+  const SFX_KEYS = new Set(['sfx_coin', 'sfx_hurt', 'sfx_jump', 'sfx_laser']);
+
   // ---------------------------------------------------------------------
   // Hero spritesheet layout (hero_movement.png, measured from source pixels)
   // ---------------------------------------------------------------------
@@ -582,6 +592,34 @@
       this.loaded = 0;
       this.failed = [];
       this.muted = false;
+
+      // Web Audio API for short SFX -- see playSfx()/_loadSfxBuffer(). Created
+      // up front so decoding can happen during the loading screen; it starts
+      // (or resumes) suspended on browsers that require a user gesture, which
+      // unlockAudioContext() handles on the first touchstart.
+      this.sfxBuffers = {};
+      const AudioContextCtor = window.AudioContext || window.webkitAudioContext;
+      this.audioCtx = AudioContextCtor ? new AudioContextCtor() : null;
+      this.sfxGainNode = this.audioCtx ? this.audioCtx.createGain() : null;
+      if (this.sfxGainNode) {
+        this.sfxGainNode.connect(this.audioCtx.destination);
+      }
+    }
+
+    // iOS Safari (and other mobile WebKit/Chrome builds) keep a freshly created
+    // AudioContext suspended until it's resumed from inside a user-gesture
+    // event handler. Call this once during bootstrap -- it resumes immediately
+    // if already inside a gesture, and otherwise arms a one-time touchstart
+    // listener to resume on the player's first tap.
+    unlockAudioContext() {
+      if (!this.audioCtx) return;
+      const resume = () => {
+        if (this.audioCtx.state === 'suspended') {
+          this.audioCtx.resume().catch(() => {});
+        }
+      };
+      resume();
+      window.addEventListener('touchstart', resume, { once: true, passive: true });
     }
 
     _loadImage(key, src) {
@@ -627,6 +665,33 @@
       });
     }
 
+    // Decodes a short SFX into an AudioBuffer for playSfx() instead of loading
+    // it as an HTMLAudioElement. Falls back to leaving the key unset (playSfx
+    // then silently no-ops for it) when there's no AudioContext or decoding
+    // fails, same failure behavior as a failed _loadAudio().
+    async _loadSfxBuffer(key, src) {
+      try {
+        if (!this.audioCtx) throw new Error('Web Audio API unavailable');
+        const response = await fetch(src);
+        const arrayBuffer = await response.arrayBuffer();
+        this.sfxBuffers[key] = await this._decodeAudioData(arrayBuffer);
+      } catch (err) {
+        this.failed.push(src);
+      }
+      this._tick(key);
+    }
+
+    // Wraps AudioContext#decodeAudioData's legacy callback signature (still
+    // needed on older Safari) in a Promise alongside its modern return value.
+    _decodeAudioData(arrayBuffer) {
+      return new Promise((resolve, reject) => {
+        const maybePromise = this.audioCtx.decodeAudioData(arrayBuffer, resolve, reject);
+        if (maybePromise && typeof maybePromise.then === 'function') {
+          maybePromise.then(resolve, reject);
+        }
+      });
+    }
+
     _tick(key) {
       this.loaded += 1;
       if (this.onProgress) {
@@ -640,7 +705,7 @@
         this._loadImage(key, src)
       );
       const audioJobs = Object.entries(this.audioManifest).map(([key, src]) =>
-        this._loadAudio(key, src)
+        SFX_KEYS.has(key) ? this._loadSfxBuffer(key, src) : this._loadAudio(key, src)
       );
       await Promise.all([...imageJobs, ...audioJobs]);
       if (this.failed.length) {
@@ -653,7 +718,29 @@
       return this.images[key] || null;
     }
 
+    // Plays a short SFX. Keys in SFX_KEYS go through Web Audio
+    // (AudioBufferSourceNode) rather than cloning/playing an
+    // HTMLAudioElement -- each call gets its own node, so rapid or
+    // overlapping triggers (e.g. machine-gunning the fire button) layer
+    // cleanly instead of one instance's play() call stepping on another's,
+    // which is what drops sounds on iOS Safari. Everything else falls back
+    // to the original cloneNode()/play() approach.
     playSfx(key, { volume = 1 } = {}) {
+      const buffer = this.sfxBuffers[key];
+      if (buffer && this.audioCtx && this.sfxGainNode) {
+        if (this.audioCtx.state === 'suspended') {
+          this.audioCtx.resume().catch(() => {});
+        }
+        const source = this.audioCtx.createBufferSource();
+        source.buffer = buffer;
+        const gain = this.audioCtx.createGain();
+        gain.gain.value = volume;
+        source.connect(gain);
+        gain.connect(this.sfxGainNode);
+        source.start(0);
+        return;
+      }
+
       const base = this.audio[key];
       if (!base) return;
       const instance = base.cloneNode(true);
@@ -700,6 +787,9 @@
       Object.values(this.audio).forEach((track) => {
         track.muted = this.muted;
       });
+      if (this.sfxGainNode) {
+        this.sfxGainNode.gain.value = this.muted ? 0 : 1;
+      }
       return this.muted;
     }
   }
@@ -2891,6 +2981,7 @@
       }
       if (this.muteButton) {
         this.muteButton.textContent = this.assets.muted ? '🔇' : '🔊';
+        this.muteButton.classList.toggle('is-active', this.assets.muted);
       }
     }
   }
@@ -2931,25 +3022,42 @@
   // reliably runs `action` exactly ONCE per gesture, and never bubbles into
   // the canvas or document-level listeners sitting underneath (the global
   // touchmove scroll-blocker, the document click -> canvas.focus() reclaim,
-  // a browser extension's own key/click handlers, etc). pointerdown and
-  // touchstart are purely defensive -- preventDefault + stopPropagation,
-  // nothing else -- because binding `action` itself to all three would
-  // double-fire it for a real mouse (pointerdown -> click is ONE physical
-  // click); only 'click' actually runs it. preventDefault on pointerdown
-  // also keeps these chrome buttons from stealing keyboard focus away from
-  // the canvas when tapped/clicked.
+  // a browser extension's own key/click handlers, etc).
+  //
+  // iOS Safari is unreliable about the synthetic 'click' a tap is supposed
+  // to produce: calling preventDefault() on touchstart (needed below to stop
+  // the tap from stealing canvas focus/scrolling the page) sometimes
+  // suppresses that synthetic click entirely, and sometimes doesn't --
+  // behavior has flipped across iOS versions. Relying on 'click' alone,
+  // then, either silently drops the tap or (when click DOES still fire
+  // alongside an explicit touchend handler) runs `action` twice for one
+  // physical tap. So every event that could plausibly mark "the tap ended"
+  // (touchend, pointerup, click) is wired to the same debounced `fire` --
+  // whichever lands first actually runs `action`; everything else arriving
+  // within the window is swallowed, guaranteeing exactly one call per tap
+  // regardless of which event(s) a given browser happens to deliver.
   function wireUiButton(button, action) {
     if (!button) return;
+
     const guard = (e) => {
       e.preventDefault();
       e.stopPropagation();
     };
-    button.addEventListener('pointerdown', guard);
     button.addEventListener('touchstart', guard, { passive: false });
-    button.addEventListener('click', (e) => {
-      guard(e);
+    button.addEventListener('pointerdown', guard);
+
+    let lastFiredAt = 0;
+    const fire = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const now = Date.now();
+      if (now - lastFiredAt < 400) return;
+      lastFiredAt = now;
       action();
-    });
+    };
+    button.addEventListener('touchend', fire, { passive: false });
+    button.addEventListener('pointerup', fire);
+    button.addEventListener('click', fire);
   }
 
   // The mute toggle is a real DOM button (#mute-btn) rather than the old
@@ -2961,6 +3069,10 @@
 
     const updateIcon = () => {
       button.textContent = assets.muted ? '🔇' : '🔊';
+      // Driven by assets.muted (JS state), not the CSS :active pseudo-class --
+      // :active only paints for as long as the finger/pointer is physically
+      // down, which says nothing about whether mute is actually on.
+      button.classList.toggle('is-active', assets.muted);
     };
 
     wireUiButton(button, () => {
@@ -2993,7 +3105,9 @@
 
     const updateIcon = () => {
       if (!button) return;
-      button.textContent = isFullscreenActive() ? '🗗' : '⛶';
+      const active = isFullscreenActive();
+      button.textContent = active ? '🗗' : '⛶';
+      button.classList.toggle('is-active', active);
     };
 
     function toggleFullscreen() {
@@ -3065,6 +3179,7 @@
     const ctx = canvas.getContext('2d');
 
     const assets = new AssetManager(IMAGE_MANIFEST, AUDIO_MANIFEST);
+    assets.unlockAudioContext();
 
     drawLoadingScreen(ctx, 0, assets.total, '');
 

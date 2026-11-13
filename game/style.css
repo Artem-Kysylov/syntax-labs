@@ -113,6 +113,15 @@ canvas:focus {
   background: rgba(0, 255, 102, 0.25);
 }
 
+/* Reflects actual JS-tracked state (muted / fullscreen-on) rather than the
+   fleeting CSS :active press -- on iOS Safari, :active can stay stuck or
+   never visibly trigger for a tap, so the button needs a state-driven look
+   that persists for as long as the toggle is actually on. */
+.ui-btn.is-active {
+  background: rgba(0, 255, 102, 0.35);
+  border-color: #aaffcc;
+}
+
 /* On small / touch screens the decorative frame just eats into space the
    canvas and virtual controls need, so drop it and go edge-to-edge -- and let
    the canvas itself fill the full viewport (object-fit: contain above still
@@ -253,7 +262,7 @@ body.fullscreen-mode #game-canvas {
   position: absolute;
   bottom: max(16px, env(safe-area-inset-bottom));
   display: flex;
-  gap: 14px;
+  gap: 18px;
   pointer-events: none;
 }
 
@@ -285,7 +294,8 @@ body.fullscreen-mode #game-canvas {
   align-items: center;
   justify-content: center;
   box-shadow: 0 4px 0 rgba(0, 0, 0, 0.5);
-  transition: transform 0.05s, box-shadow 0.05s, background 0.05s;
+  opacity: 0.35;
+  transition: transform 0.05s, box-shadow 0.05s, background 0.05s, opacity 0.05s;
 }
 
 /* .touch-key's own `display: flex` has the same specificity as (and would
@@ -300,6 +310,7 @@ body.fullscreen-mode #game-canvas {
   background: rgba(80, 220, 120, 0.35);
   box-shadow: 0 1px 0 rgba(0, 0, 0, 0.5);
   transform: translateY(3px);
+  opacity: 0.75;
 }
 
 .touch-key-jump {
@@ -338,7 +349,7 @@ body.fullscreen-mode #game-canvas {
 @media (max-height: 500px) and (orientation: landscape) {
   .touch-pad {
     bottom: calc(18px + env(safe-area-inset-bottom));
-    gap: 8px;
+    gap: 18px;
   }
 
   .touch-pad-left {
@@ -354,7 +365,6 @@ body.fullscreen-mode #game-canvas {
     height: 46px;
     font-size: 15px;
     border-radius: 8px;
-    opacity: 0.65;
     touch-action: manipulation;
     user-select: none;
   }
