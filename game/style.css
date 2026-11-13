@@ -368,7 +368,7 @@ body.fullscreen-mode #game-canvas {
 @media (max-height: 500px) and (orientation: landscape) {
   .touch-pad {
     bottom: calc(18px + env(safe-area-inset-bottom));
-    gap: 18px;
+    gap: 24px;
   }
 
   .touch-pad-left {
@@ -380,17 +380,25 @@ body.fullscreen-mode #game-canvas {
   }
 
   .touch-key {
-    width: 46px;
-    height: 46px;
-    font-size: 15px;
-    border-radius: 8px;
+    width: 58px;
+    height: 58px;
+    font-size: 19px;
+    border-radius: 10px;
     touch-action: manipulation;
     user-select: none;
   }
 
   .touch-key-jump {
-    width: 48px;
-    height: 48px;
-    font-size: 15px;
+    width: 64px;
+    height: 64px;
+    font-size: 20px;
+  }
+
+  /* FIRE's own label is 4 characters vs. the single-letter H/L/J/K keys, so it
+     needs a smaller font than .touch-key's 19px above (which would otherwise
+     win on source order and overflow "FIRE" past the button's rounded border)
+     to actually fit inside the shared 58px box. */
+  .touch-key-fire {
+    font-size: 14px;
   }
 }
