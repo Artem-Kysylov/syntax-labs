@@ -34,9 +34,12 @@
   --color-tablemask-rgb:  164, 230, 54;
   --color-sigfix:         #0078D4;
   --color-sigfix-rgb:     0, 120, 212;
+  --color-vim:            #00ff41;
+  --color-vim-rgb:        0, 255, 65;
 
   /* Typography */
   --font-sans:      'Inter', sans-serif;
+  --font-mono:      'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
 
   --text-xs:        0.75rem;
   --text-sm:        0.875rem;
@@ -796,6 +799,196 @@ button { cursor: pointer; font-family: inherit; }
 }
 
 /* ============================================================
+   GAME PROMO BANNER
+   ============================================================ */
+
+.game-promo-section {
+  padding-bottom: var(--space-24);
+}
+
+.game-promo-card {
+  position:         relative;
+  display:          flex;
+  align-items:      center;
+  justify-content:  space-between;
+  gap:              var(--space-8);
+  background-color: var(--bg-surface);
+  border:           1px solid var(--border);
+  border-radius:    var(--radius-lg);
+  padding:          var(--space-8);
+  overflow:         hidden;
+  transition:       border-color var(--transition-base);
+}
+
+.game-promo-card::before {
+  content:    '';
+  position:   absolute;
+  inset:      -1px;
+  border-radius: inherit;
+  background: radial-gradient(
+    500px circle at 0% 50%,
+    rgba(var(--color-vim-rgb), 0.06) 0%,
+    transparent 70%
+  );
+  pointer-events: none;
+}
+
+/* Lightweight CRT scanline accent, revealed on hover */
+.game-promo-card::after {
+  content:        '';
+  position:       absolute;
+  inset:          0;
+  border-radius:  inherit;
+  background-image: repeating-linear-gradient(
+    to bottom,
+    rgba(var(--color-vim-rgb), 0.5) 0px,
+    rgba(var(--color-vim-rgb), 0.5) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+  opacity:        0;
+  mix-blend-mode: overlay;
+  pointer-events: none;
+  transition:     opacity var(--transition-base);
+}
+
+.game-promo-card:hover {
+  border-color: rgba(var(--color-vim-rgb), 0.3);
+}
+
+.game-promo-card:hover::after {
+  opacity: 0.15;
+}
+
+.game-promo-card > * {
+  position: relative;
+  z-index:  1;
+}
+
+.game-promo-card__main {
+  max-width: 560px;
+}
+
+.game-promo-card__top {
+  display:       flex;
+  align-items:   center;
+  flex-wrap:     wrap;
+  gap:           var(--space-3);
+  margin-bottom: var(--space-5);
+}
+
+.badge--game {
+  margin-bottom: 0;
+  font-family:   var(--font-mono);
+  color:         var(--color-vim);
+  background:    rgba(var(--color-vim-rgb), 0.1);
+  border-color:  rgba(var(--color-vim-rgb), 0.25);
+}
+
+.status-pill {
+  display:        inline-flex;
+  align-items:    center;
+  gap:            var(--space-2);
+  font-size:      var(--text-xs);
+  font-weight:    var(--weight-medium);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color:          var(--text-muted);
+}
+
+.status-pill__dot {
+  width:         6px;
+  height:        6px;
+  border-radius: var(--radius-full);
+  background:    var(--color-vim);
+  box-shadow:    0 0 8px rgba(var(--color-vim-rgb), 0.8);
+  flex-shrink:   0;
+}
+
+.game-promo-card__title {
+  font-size:      clamp(var(--text-2xl), 3vw, var(--text-3xl));
+  font-weight:    var(--weight-bold);
+  letter-spacing: -0.03em;
+  color:          var(--text-bright);
+  line-height:    1.15;
+  margin-bottom:  var(--space-4);
+}
+
+.game-promo-card__desc {
+  font-size:   var(--text-sm);
+  color:       var(--text-base);
+  line-height: 1.7;
+  max-width:   52ch;
+}
+
+.game-promo-card__action {
+  display:        flex;
+  flex-direction: column;
+  align-items:    flex-end;
+  flex-shrink:    0;
+  gap:            var(--space-3);
+}
+
+.keycap-row {
+  display: flex;
+  gap:     var(--space-2);
+}
+
+.keycap {
+  display:         inline-flex;
+  align-items:     center;
+  justify-content: center;
+  width:           28px;
+  height:          28px;
+  border-radius:   var(--radius-sm);
+  background:      var(--bg-elevated);
+  border:          1px solid var(--border-hover);
+  font-family:     var(--font-mono);
+  font-size:       var(--text-xs);
+  font-weight:     var(--weight-semibold);
+  color:           var(--text-muted);
+  box-shadow:      inset 0 -2px 0 rgba(0, 0, 0, 0.25);
+  transition:      color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.game-promo-card:hover .keycap {
+  color:        var(--color-vim);
+  border-color: rgba(var(--color-vim-rgb), 0.35);
+}
+
+.btn--game {
+  background-color: var(--color-vim);
+  color:            #04140a;
+  border-color:     var(--color-vim);
+  white-space:      nowrap;
+}
+
+.btn--game:hover {
+  background-color: #33ff69;
+  box-shadow: 0 0 24px rgba(var(--color-vim-rgb), 0.3);
+}
+
+.game-promo-card__caption {
+  font-size: var(--text-xs);
+  color:     var(--text-muted);
+  text-align: right;
+}
+
+.game-promo-card__source-link {
+  font-size:      var(--text-xs);
+  font-family:    var(--font-mono);
+  color:          var(--text-muted);
+  text-decoration: underline;
+  text-decoration-color: var(--border-hover);
+  text-underline-offset: 3px;
+  transition:     color var(--transition-fast);
+}
+
+.game-promo-card__source-link:hover {
+  color: var(--color-vim);
+}
+
+/* ============================================================
    MANIFESTO / VALUES
    ============================================================ */
 
@@ -984,6 +1177,10 @@ button { cursor: pointer; font-family: inherit; }
 
   .bento-card--featured { min-height: 320px; }
 
+  .game-promo-card {
+    padding: var(--space-6);
+  }
+
   .values-grid {
     grid-template-columns: repeat(2, 1fr);
   }
@@ -1099,8 +1296,53 @@ button { cursor: pointer; font-family: inherit; }
     border-radius: var(--radius-md); /* Уменьшаем радиус на мобилке */
   }
 
-  .bento-card--featured { 
+  .bento-card--featured {
     min-height: auto;
+  }
+
+  /* Game promo banner */
+  .game-promo-section {
+    padding-bottom: var(--space-16);
+  }
+
+  .game-promo-card {
+    flex-direction: column;
+    align-items:    stretch;
+    gap:            var(--space-6);
+    padding:        var(--space-6);
+    border-radius:  var(--radius-md);
+  }
+
+  .game-promo-card__main {
+    max-width: 100%;
+  }
+
+  .game-promo-card__desc {
+    max-width: 100%;
+  }
+
+  .game-promo-card__action {
+    align-items: stretch;
+  }
+
+  .keycap-row {
+    justify-content: center;
+  }
+
+  .btn--game {
+    width:           100%;
+    justify-content: center;
+    padding:         var(--space-4) var(--space-6);
+    font-size:       var(--text-base-size);
+    min-height:      48px;
+  }
+
+  .game-promo-card__caption {
+    text-align: center;
+  }
+
+  .game-promo-card__source-link {
+    text-align: center;
   }
 
   .card-title {
