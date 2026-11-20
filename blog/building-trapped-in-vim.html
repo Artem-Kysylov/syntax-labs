@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <meta name="description" content="The story of building Trapped in Vim: an 8-bit browser platformer controlled entirely with HJKL, three levels, a secret room, a custom Web Audio chiptune soundtrack, and an AI-designed boss that took 38 attempts to survive." />
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml" />
+
+  <meta property="og:type" content="article" />
+  <meta property="og:url" content="https://syntaxlabsapp.com/blog/building-trapped-in-vim.html" />
+  <meta property="og:title" content="Building Trapped in Vim: How an AI-Designed Boss Took Me 38 Attempts to Beat — Syntax Labs" />
+  <meta property="og:description" content="An 8-bit browser platformer controlled entirely with HJKL, three levels, a secret room, a Web Audio chiptune soundtrack, and a boss that humbled me 38 times before I shipped it." />
+  <meta property="og:image" content="https://syntaxlabsapp.com/open-graph.png" />
+
+  <title>Building Trapped in Vim: How an AI-Designed Boss Took Me 38 Attempts to Beat — Syntax Labs</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="../styles.css" />
+</head>
+
+<body>
+
+  <!-- ============================================================
+       HEADER
+       ============================================================ -->
+  <header class="site-header" role="banner">
+    <div class="container">
+
+      <!-- Logo -->
+      <a href="/" class="logo" aria-label="Syntax Labs — home">
+        <img src="/logo/logo.svg" alt="" class="logo__image" width="171" height="19" />
+      </a>
+
+      <!-- Navigation -->
+      <nav class="site-nav" role="navigation" aria-label="Primary navigation">
+
+        <!-- Twitter / X -->
+        <a
+          href="https://x.com/tabXport"
+          class="nav-link"
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Follow us on X (Twitter)"
+        >
+          <svg viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.741l7.73-8.835L1.254 2.25H8.08l4.265 5.638 5.9-5.638Zm-1.161 17.52h1.833L7.084 4.126H5.117L17.083 19.77Z"/>
+          </svg>
+          <span>Twitter</span>
+        </a>
+
+        <!-- YouTube -->
+        <a
+          href="https://www.youtube.com/@Artem_AlwaysBuilding"
+          class="nav-link"
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Watch us on YouTube"
+        >
+          <svg viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <path d="M23.495 6.205a3.007 3.007 0 0 0-2.088-2.088c-1.87-.501-9.396-.501-9.396-.501s-7.507-.01-9.396.501A3.007 3.007 0 0 0 .527 6.205a31.247 31.247 0 0 0-.522 5.805 31.247 31.247 0 0 0 .522 5.783 3.007 3.007 0 0 0 2.088 2.088c1.868.502 9.396.502 9.396.502s7.506 0 9.396-.502a3.007 3.007 0 0 0 2.088-2.088 31.247 31.247 0 0 0 .5-5.783 31.247 31.247 0 0 0-.5-5.805zM9.609 15.601V8.408l6.264 3.602z"/>
+          </svg>
+          <span>YouTube</span>
+        </a>
+
+        <!-- GitHub -->
+        <a
+          href="https://github.com/Artem-Kysylov"
+          class="nav-link"
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Find us on GitHub"
+        >
+          <svg viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/>
+          </svg>
+          <span>GitHub</span>
+        </a>
+
+      </nav>
+    </div>
+  </header>
+
+  <!-- MAIN ARTICLE CONTENT -->
+  <main class="article-page">
+    <div class="article-container">
+
+      <a href="/" class="article-back">
+        ← Back to Syntax Labs
+      </a>
+
+      <header class="article-header">
+        <div class="journal-card__meta">
+          <span class="journal-tag">#gamedev</span>
+          <span class="journal-date">Nov 18, 2026 • 6 min read</span>
+        </div>
+        <h1 class="article-title">
+          Building Trapped in Vim: How an AI-Designed Boss Took Me 38 Attempts to Beat
+        </h1>
+        <p style="color: #a1a1aa; font-size: 0.95rem;">By Artem Kysylov</p>
+      </header>
+
+      <!-- Embedded YouTube Video -->
+      <div class="article-video-box">
+        <iframe
+          src="https://www.youtube.com/embed/DBJeRiZE6ZY"
+          title="Building Trapped in Vim — Devlog"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allowfullscreen>
+        </iframe>
+      </div>
+
+      <!-- ARTICLE BODY -->
+      <article class="article-body">
+
+        <p>
+          Every Vim tutorial eventually tells you the same thing: stop reaching for the arrow keys. Mine apparently didn't stop at tutorials. A few weeks after <code>HJKL</code> finally stuck in my fingers, I decided the only reasonable next step was to build an entire 8-bit platformer where arrow keys don't exist at all. The result is <strong>Trapped in Vim</strong> — a browser game that punishes you for forgetting your home row, and occasionally punishes me for shipping it.
+        </p>
+
+        <h2>Why a Platformer, Why Vim Keys</h2>
+        <p>
+          The premise is simple and slightly mean: you're a pixel trapped inside a terminal, and the only way out is <code>H</code> (left), <code>J</code> (down), <code>K</code> (up), and <code>L</code> (right). No WASD, no arrow key fallback, no mercy. If you've never touched Vim, the first level is a crash course disguised as a dungeon. If you have, it's muscle memory doing the work your brain refuses to.
+        </p>
+        <p>
+          I wanted something I could actually finish — not a sprawling engine, just a focused 8-bit experience built on an HTML canvas, vanilla JavaScript, and a controller scheme that forces the "aha" moment Vim beginners eventually get. Turns out making players relearn how to move is a great way to make a tutorial feel like a game instead of a chore.
+        </p>
+
+        <blockquote>
+          "Every other platformer trusts you with four directional keys. This one makes you earn them."
+        </blockquote>
+
+        <h2>Three Levels and One Room I Didn't Tell Anyone About</h2>
+        <p>
+          The game ships with three levels, each one layering on a new Vim-flavored obstacle — timing jumps on <code>K</code>, dodging hazards that only open to a precise <code>L</code>-tap, that kind of thing. There's also a secret room, hidden well enough that most playtesters walked straight past it without noticing the wall wasn't really a wall. I'm not going to spell out where it is here — that would defeat the entire point of a secret room — but if you've ever accidentally discovered a Vim shortcut you didn't know existed, you already have the right instinct for finding it.
+        </p>
+
+        <h2>A Soundtrack Nobody Asked For</h2>
+        <p>
+          Somewhere around level two I decided the game needed music, and more specifically that it needed music I wrote myself instead of a royalty-free loop. So I built a small chiptune engine directly on top of the <strong>Web Audio API</strong> — square waves, a noise channel for percussion, and just enough arpeggiation to sound convincingly retro without licensing a single sample. No audio files ship with the game; every note is generated at runtime, which also means the entire soundtrack weighs almost nothing on the page.
+        </p>
+        <p>
+          It was, objectively, more work than the feature deserved. It was also the most fun I had building this thing.
+        </p>
+
+        <!-- Play / Source CTA -->
+        <div class="article-cta-card">
+          <span class="cta-badge">Play It Yourself</span>
+          <h3>Trapped in Vim — Now Live in Your Browser</h3>
+          <p>8-bit, keyboard-only, and genuinely trying to get you fired from your terminal habits. No install, no download — just HJKL and a little patience.</p>
+          <div class="cta-actions">
+            <a href="../game/index.html" class="btn btn--game">
+              Play in Browser
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <path d="M3 7H11M11 7L7.5 3.5M11 7L7.5 10.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </a>
+            <a href="https://github.com/Artem-Kysylov/trapped-in-vim" target="_blank" rel="noopener noreferrer" class="btn btn--ghost">
+              View Source on GitHub
+            </a>
+          </div>
+        </div>
+
+        <h2>MONITOR KERNEL: The Boss an AI Designed to Hurt Me</h2>
+        <p>
+          The boss fight at the end of level two is called <strong>MONITOR KERNEL</strong>, and I'll be honest about its origin: I prompted an AI for boss-fight pattern ideas, expecting something tame. What came back was a multi-phase attack rotation with enough deliberate timing windows to feel fair in theory and brutal in practice. I implemented it faithfully, mostly because I was too proud to nerf a boss I didn't even design.
+        </p>
+        <p>
+          That decision cost me <strong>38 attempts</strong> to beat my own boss fight. I kept a tally. It felt important to keep a tally.
+        </p>
+        <p>
+          In hindsight, that's the right outcome. A boss fight that the developer breezes through on attempt two is a boss fight that will get complained about in the reviews. MONITOR KERNEL earned its name honestly — it's unforgiving, it's readable once you learn its tells, and it made me genuinely relieved the first time I walked away from it still alive.
+        </p>
+
+        <h2>Open Source, Pull Requests Welcome</h2>
+        <p>
+          The full source is public on GitHub. If you want to poke around the rendering loop, the Web Audio synth, or the input handling that turns <code>HJKL</code> into platformer movement, it's all there to read. And if you've got an idea for a fourth level, a new mechanic, or a boss meaner than MONITOR KERNEL — pull requests are genuinely welcome. I built this solo, but I'd rather it not stay that way.
+        </p>
+        <p>
+          Play it, break it, find the secret room, and if you manage to beat the boss in fewer than 38 tries, I'd like to know how.
+        </p>
+
+      </article>
+
+      <!-- Social CTA -->
+      <div class="article-cta-card">
+        <span class="cta-badge">Follow the Journey</span>
+        <h3>Building in Public on YouTube &amp; X</h3>
+        <p>I document my transition to cybersecurity, Python automation, and retro devlogs in real-time. Join the community!</p>
+        <div class="cta-actions">
+          <a href="https://www.youtube.com/@Artem_AlwaysBuilding" target="_blank" rel="noopener noreferrer" class="btn btn--primary">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M23.495 6.205a3.007 3.007 0 0 0-2.088-2.088c-1.87-.501-9.396-.501-9.396-.501s-7.507-.01-9.396.501A3.007 3.007 0 0 0 .527 6.205a31.247 31.247 0 0 0-.522 5.805 31.247 31.247 0 0 0 .522 5.783 3.007 3.007 0 0 0 2.088 2.088c1.868.502 9.396.502 9.396.502s7.506 0 9.396-.502a3.007 3.007 0 0 0 2.088-2.088 31.247 31.247 0 0 0 .5-5.783 31.247 31.247 0 0 0-.5-5.805zM9.609 15.601V8.408l6.264 3.602z"/>
+            </svg>
+            Subscribe on YouTube
+          </a>
+          <a href="https://x.com/tabXport" target="_blank" rel="noopener noreferrer" class="btn btn--ghost">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.741l7.73-8.835L1.254 2.25H8.08l4.265 5.638 5.9-5.638Zm-1.161 17.52h1.833L7.084 4.126H5.117L17.083 19.77Z"/>
+            </svg>
+            Follow on X
+          </a>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+<!-- ============================================================
+       FOOTER
+       ============================================================ -->
+  <footer class="site-footer" role="contentinfo">
+    <div class="container">
+
+      <div class="footer-left">
+        <img src="/logo/logo.svg" alt="Syntax Labs" class="footer-logo" width="171" height="19" />
+        <span class="footer-copy">© 2026 Syntax Labs. All rights reserved.</span>
+        <a href="https://github.com/Artem-Kysylov/syntax-labs-vanilla-template" class="footer-template-link" target="_blank" rel="noopener noreferrer">Built with Syntax Vanilla Template</a>
+      </div>
+
+      <nav class="footer-nav" aria-label="Footer navigation">
+        <a href="/privacy.html" class="footer-link">Privacy Policy</a>
+        <a href="/terms.html" class="footer-link">Terms of Use</a>
+        <a href="mailto:hello@syntaxlabsapp.com" class="footer-link">Contact</a>
+      </nav>
+
+    </div>
+  </footer>
+
+</body>
+</html>
