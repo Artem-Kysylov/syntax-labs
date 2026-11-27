@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <meta name="description" content="Inside subdomain_enum.py: wildcard DNS detection that filters catch-all false positives, passive Certificate Transparency log mining via crt.sh, and active DNS brute-forcing merged into one source-tagged hybrid result set. Part 3 of the Security Reconnaissance Suite." />
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml" />
+
+  <meta property="og:type" content="article" />
+  <meta property="og:url" content="https://syntaxlabsapp.com/blog/hybrid-subdomain-enumerator.html" />
+  <meta property="og:title" content="Hybrid Subdomain Enumerator: Finding the Subdomains Your Main Domain's Hardening Never Reached — Syntax Labs" />
+  <meta property="og:description" content="Wildcard DNS detection, passive crt.sh Certificate Transparency parsing, and active DNS brute-forcing merged into a source-tagged attack surface map inside subdomain_enum.py — a CLI recon tool." />
+  <meta property="og:image" content="https://syntaxlabsapp.com/open-graph.png" />
+
+  <title>Hybrid Subdomain Enumerator: Finding the Subdomains Your Main Domain's Hardening Never Reached — Syntax Labs</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="../styles.css" />
+</head>
+
+<body>
+
+  <!-- ============================================================
+       HEADER
+       ============================================================ -->
+  <header class="site-header" role="banner">
+    <div class="container">
+
+      <!-- Logo -->
+      <a href="/" class="logo" aria-label="Syntax Labs — home">
+        <img src="/logo/logo.svg" alt="" class="logo__image" width="171" height="19" />
+      </a>
+
+      <!-- Navigation -->
+      <nav class="site-nav" role="navigation" aria-label="Primary navigation">
+
+        <!-- Twitter / X -->
+        <a
+          href="https://x.com/tabXport"
+          class="nav-link"
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Follow us on X (Twitter)"
+        >
+          <svg viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.741l7.73-8.835L1.254 2.25H8.08l4.265 5.638 5.9-5.638Zm-1.161 17.52h1.833L7.084 4.126H5.117L17.083 19.77Z"/>
+          </svg>
+          <span>Twitter</span>
+        </a>
+
+        <!-- YouTube -->
+        <a
+          href="https://www.youtube.com/@Artem_AlwaysBuilding"
+          class="nav-link"
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Watch us on YouTube"
+        >
+          <svg viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <path d="M23.495 6.205a3.007 3.007 0 0 0-2.088-2.088c-1.87-.501-9.396-.501-9.396-.501s-7.507-.01-9.396.501A3.007 3.007 0 0 0 .527 6.205a31.247 31.247 0 0 0-.522 5.805 31.247 31.247 0 0 0 .522 5.783 3.007 3.007 0 0 0 2.088 2.088c1.868.502 9.396.502 9.396.502s7.506 0 9.396-.502a3.007 3.007 0 0 0 2.088-2.088 31.247 31.247 0 0 0 .5-5.783 31.247 31.247 0 0 0-.5-5.805zM9.609 15.601V8.408l6.264 3.602z"/>
+          </svg>
+          <span>YouTube</span>
+        </a>
+
+        <!-- GitHub -->
+        <a
+          href="https://github.com/Artem-Kysylov"
+          class="nav-link"
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Find us on GitHub"
+        >
+          <svg viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/>
+          </svg>
+          <span>GitHub</span>
+        </a>
+
+      </nav>
+    </div>
+  </header>
+
+  <!-- MAIN ARTICLE CONTENT -->
+  <main class="article-page">
+    <div class="article-container">
+
+      <a href="/" class="article-back">
+        ← Back to Syntax Labs
+      </a>
+
+      <header class="article-header">
+        <div class="journal-card__meta">
+          <span class="journal-tag">#cybersecurity</span>
+          <span class="journal-date">Nov 27, 2026 • 8 min read</span>
+        </div>
+        <h1 class="article-title">
+          Hybrid Subdomain Enumerator: Finding the Subdomains Your Main Domain's Hardening Never Reached
+        </h1>
+        <p style="color: #a1a1aa; font-size: 0.95rem;">By Artem Kysylov</p>
+      </header>
+
+      <!-- ARTICLE BODY -->
+      <article class="article-body">
+
+        <p>
+          A hardened main domain tells you almost nothing about what's actually reachable. Attackers don't start at <code>example.com</code> — they start at the subdomains nobody remembers provisioning: a <code>dev.example.com</code> still running last year's unpatched build, a <code>staging.example.com</code> with debug mode left on, a <code>jenkins.example.com</code> or <code>internal.example.com</code> that was never meant to see the public internet at all. The main domain gets every security review, every header audit, every pentest. The forgotten subdomain gets none of that, and it's sitting on the exact same DNS zone.
+        </p>
+        <p>
+          That's the surface <strong>Hybrid Subdomain Enumerator</strong> (<code>subdomain_enum.py</code>) maps. It's a CLI tool that pairs two fundamentally different discovery methods — passive Certificate Transparency log mining and active DNS brute-forcing — because each one catches exactly what the other misses: CT logs surface historical and forgotten hosts no wordlist would ever guess, while brute-forcing confirms which hosts are actually alive right now, something a certificate log can't tell you on its own. Below is a breakdown of how the two get merged into one source-tagged result set, followed by the terminal output and the hardening steps that close what it finds.
+        </p>
+
+        <h2>Why Attack Surface Discovery Starts With Subdomains</h2>
+        <p>
+          Every subdomain is a separate deployment with its own code path, its own forgotten config, and often its own exemption from whatever hardening the main site went through. A <code>staging</code> environment exists specifically to test changes before they're safe — which means it's the one host in the zone most likely to be running debug mode, verbose error pages, or last month's unpatched dependency. An <code>internal</code> or <code>admin</code> subdomain was provisioned on the assumption that nobody outside the company would ever type its name — an assumption that DNS does nothing to enforce. None of this shows up by looking at the main site. It shows up only by finding the subdomain in the first place.
+        </p>
+        <p>
+          Relying on a single discovery method misses most of it either way. A pure brute-force scanner only finds what's in its wordlist — it will never guess <code>payments-v2-deprecated.example.com</code> unless that exact string happens to be in the dictionary. A pure passive scanner only finds what's been publicly logged — it has no way to tell you whether a host it found two years ago is still alive today, or whether a brand-new internal tool that never got a public certificate even exists. Combining both is what turns "some subdomains" into a result set close to the real attack surface.
+        </p>
+
+        <blockquote>
+          "Certificate Transparency tells you what has ever existed. DNS brute-forcing tells you what's alive right now. Neither answers the other's question — which is exactly why a scanner that only does one of them is reading half the map."
+        </blockquote>
+
+        <h2>Architecture &amp; Code Breakdown</h2>
+        <p>
+          <code>subdomain_enum.py</code> is built around three cooperating pieces: a wildcard probe that runs before anything else to keep catch-all DNS records from poisoning every later result, a passive lookup against public Certificate Transparency logs, and an active DNS dictionary pass that gets merged with the passive results into one tagged list. Here's how each one works.
+        </p>
+
+        <h3>1. Wildcard DNS Detection</h3>
+        <p>
+          Before a single prefix gets brute-forced, the scanner checks whether the zone even has a meaningful "not found" state. A wildcard <code>*.domain.com</code> DNS record makes every possible subdomain resolve to the same IP — including ones that were never actually provisioned — which would otherwise turn a 30-entry wordlist scan into 30 false positives instead of real findings.
+        </p>
+
+        <div class="article-code-block">
+          <div class="article-code-block__header">
+            <span class="article-code-block__filename">subdomain_enum.py</span>
+            <span class="article-code-block__lang">Python</span>
+          </div>
+          <pre><code><span class="tok-kw">def</span> <span class="tok-fn">_detect_wildcard_ip</span>(<span class="tok-kw">self</span>, domain: <span class="tok-fn">str</span>) -&gt; <span class="tok-fn">str</span> | <span class="tok-kw">None</span>:
+    <span class="tok-com">"""Probe a randomized subdomain that cannot legitimately exist.</span>
+<span class="tok-com">    If it resolves anyway, the zone has a catch-all *.domain record —</span>
+<span class="tok-com">    every brute-force guess will "hit" that same IP, turning a real</span>
+<span class="tok-com">    scan into a flood of false positives unless we know to filter</span>
+<span class="tok-com">    that IP out before anything is reported."""</span>
+    probe = <span class="tok-fn">f</span><span class="tok-str">"nonexistent-wildcard-probe-948271.{domain}"</span>
+
+    <span class="tok-kw">try</span>:
+        <span class="tok-kw">return</span> socket.gethostbyname(probe)
+    <span class="tok-kw">except</span> socket.gaierror:
+        <span class="tok-com"># No resolution for a guaranteed-fake name — this zone has no</span>
+        <span class="tok-com"># wildcard record, so every later hit can be trusted at face value.</span>
+        <span class="tok-kw">return</span> <span class="tok-kw">None</span></code></pre>
+        </div>
+
+        <p>
+          The randomized suffix (<code>948271</code>) matters as much as the probe itself — a static string like <code>test.domain.com</code> has a real chance of colliding with an actual provisioned host, which would wrongly disable wildcard filtering for the entire scan. A high-entropy, clearly nonsensical label is the only way to guarantee the probe can't accidentally be real.
+        </p>
+
+        <h3>2. Passive Certificate Transparency Recon</h3>
+        <p>
+          Every publicly trusted Certificate Authority is required to log every certificate it issues to a public, append-only Certificate Transparency log — that requirement exists to catch rogue CAs, but it has a convenient side effect for recon: every hostname that ever appeared on a certificate for a domain is discoverable, permanently, without the target ever seeing a DNS query. <code>crt.sh</code> exposes those logs as a queryable JSON API.
+        </p>
+
+        <div class="article-code-block">
+          <div class="article-code-block__header">
+            <span class="article-code-block__filename">subdomain_enum.py</span>
+            <span class="article-code-block__lang">Python</span>
+          </div>
+          <pre><code>CRTSH_URL = <span class="tok-str">"https://crt.sh/?q=%.{domain}&output=json"</span>
+
+
+<span class="tok-kw">def</span> <span class="tok-fn">_fetch_from_crtsh</span>(<span class="tok-kw">self</span>, domain: <span class="tok-fn">str</span>) -&gt; <span class="tok-fn">set</span>[<span class="tok-fn">str</span>]:
+    <span class="tok-com">"""CT logs are public by design — every CA is required to publish</span>
+<span class="tok-com">    every certificate it issues. Querying crt.sh surfaces years of</span>
+<span class="tok-com">    historical subdomains (a decommissioned jenkins., an old staging-v1.)</span>
+<span class="tok-com">    without sending a single DNS query to the target itself."""</span>
+    subdomains: <span class="tok-fn">set</span>[<span class="tok-fn">str</span>] = <span class="tok-fn">set</span>()
+    url = CRTSH_URL.<span class="tok-fn">format</span>(domain=domain)
+
+    <span class="tok-kw">try</span>:
+        resp = <span class="tok-kw">self</span>.session.get(url, timeout=<span class="tok-kw">self</span>.timeout)
+        resp.raise_for_status()
+        entries = resp.json()
+    <span class="tok-kw">except</span> (requests.RequestException, ValueError):
+        <span class="tok-com"># crt.sh rate-limits aggressively and occasionally returns malformed</span>
+        <span class="tok-com"># JSON under load — a failed passive lookup should degrade the</span>
+        <span class="tok-com"># scan, not crash it.</span>
+        <span class="tok-kw">return</span> subdomains
+
+    <span class="tok-kw">for</span> entry <span class="tok-kw">in</span> entries:
+        <span class="tok-com"># name_value can pack multiple SANs into one newline-delimited</span>
+        <span class="tok-com"># field, e.g. "api.example.com\n*.api.example.com\nold-api.example.com"</span>
+        <span class="tok-kw">for</span> raw_name <span class="tok-kw">in</span> entry.get(<span class="tok-str">"name_value"</span>, <span class="tok-str">""</span>).split(<span class="tok-str">"\n"</span>):
+            name = raw_name.strip().lower().lstrip(<span class="tok-str">"*."</span>)
+            <span class="tok-kw">if</span> name.endswith(domain):
+                subdomains.add(name)
+
+    <span class="tok-kw">return</span> subdomains</code></pre>
+        </div>
+
+        <p>
+          The wildcard-stripping step matters more than it looks. A certificate issued for <code>*.staging.example.com</code> proves that <code>staging.example.com</code> exists as a real zone, but <code>*.staging.example.com</code> itself is a pattern, not a hostname — reporting it as a finding would be reporting a wildcard glob as if it were a live subdomain. Stripping the <code>*.</code> prefix is what turns a certificate pattern into an actual candidate worth resolving.
+        </p>
+
+        <h3>3. Active DNS Dictionary Lookup &amp; Hybrid Merging</h3>
+        <p>
+          Passive results tell you what's been seen; they don't tell you what's alive. The brute-force pass resolves a curated list of 30 high-value infrastructure prefixes directly — the names most likely to point at something worth finding: <code>api</code>, <code>staging</code>, <code>admin</code>, <code>gitlab</code>, <code>grafana</code>, <code>jira</code>, <code>internal</code>, and two dozen others in the same spirit. <code>enumerate</code> is where this active set and the passive set from <code>crt.sh</code> come together.
+        </p>
+
+        <div class="article-code-block">
+          <div class="article-code-block__header">
+            <span class="article-code-block__filename">subdomain_enum.py</span>
+            <span class="article-code-block__lang">Python</span>
+          </div>
+          <pre><code><span class="tok-com"># 30 high-value infrastructure prefixes — the names most likely to</span>
+<span class="tok-com"># front something worth finding, not a generic dictionary dump.</span>
+HIGH_VALUE_PREFIXES = [
+    <span class="tok-str">"api"</span>, <span class="tok-str">"staging"</span>, <span class="tok-str">"dev"</span>, <span class="tok-str">"admin"</span>, <span class="tok-str">"test"</span>, <span class="tok-str">"vpn"</span>, <span class="tok-str">"mail"</span>, <span class="tok-str">"ftp"</span>,
+    <span class="tok-str">"jenkins"</span>, <span class="tok-str">"gitlab"</span>, <span class="tok-str">"grafana"</span>, <span class="tok-str">"jira"</span>, <span class="tok-str">"internal"</span>, <span class="tok-str">"git"</span>, <span class="tok-str">"ci"</span>,
+    <span class="tok-str">"sso"</span>, <span class="tok-str">"auth"</span>, <span class="tok-str">"portal"</span>, <span class="tok-str">"dashboard"</span>, <span class="tok-str">"beta"</span>, <span class="tok-str">"demo"</span>, <span class="tok-str">"uat"</span>,
+    <span class="tok-str">"monitoring"</span>, <span class="tok-str">"kibana"</span>, <span class="tok-str">"db"</span>, <span class="tok-str">"backup"</span>, <span class="tok-str">"old"</span>, <span class="tok-str">"secure"</span>, <span class="tok-str">"ns1"</span>, <span class="tok-str">"mx"</span>,
+]
+
+
+<span class="tok-kw">def</span> <span class="tok-fn">_bruteforce_dns</span>(<span class="tok-kw">self</span>, domain: <span class="tok-fn">str</span>, wildcard_ip: <span class="tok-fn">str</span> | <span class="tok-kw">None</span>) -&gt; <span class="tok-fn">dict</span>[<span class="tok-fn">str</span>, <span class="tok-fn">str</span>]:
+    <span class="tok-com">"""Resolve each high-value prefix directly — no external service</span>
+<span class="tok-com">    involved, so this is the only part of the scan that touches the</span>
+<span class="tok-com">    target's own DNS servers."""</span>
+    active: <span class="tok-fn">dict</span>[<span class="tok-fn">str</span>, <span class="tok-fn">str</span>] = {}
+
+    <span class="tok-kw">for</span> prefix <span class="tok-kw">in</span> HIGH_VALUE_PREFIXES:
+        candidate = <span class="tok-fn">f</span><span class="tok-str">"{prefix}.{domain}"</span>
+        <span class="tok-kw">try</span>:
+            ip = socket.gethostbyname(candidate)
+        <span class="tok-kw">except</span> socket.gaierror:
+            <span class="tok-kw">continue</span>
+
+        <span class="tok-kw">if</span> wildcard_ip <span class="tok-kw">and</span> ip == wildcard_ip:
+            <span class="tok-com"># Every brute-force guess "resolves" on a wildcard zone — without</span>
+            <span class="tok-com"># this check, a single catch-all record makes it look like all</span>
+            <span class="tok-com"># 30 prefixes exist, when in reality none of them do.</span>
+            <span class="tok-kw">continue</span>
+
+        active[candidate] = ip
+
+    <span class="tok-kw">return</span> active
+
+
+<span class="tok-kw">def</span> <span class="tok-fn">enumerate</span>(<span class="tok-kw">self</span>, domain: <span class="tok-fn">str</span>) -&gt; <span class="tok-fn">list</span>[Result]:
+    wildcard_ip = <span class="tok-kw">self</span>._detect_wildcard_ip(domain)
+    passive_subdomains = <span class="tok-kw">self</span>._fetch_from_crtsh(domain)
+    active_map = <span class="tok-kw">self</span>._bruteforce_dns(domain, wildcard_ip)
+
+    <span class="tok-com"># Union, not concatenation — crt.sh and brute-force frequently</span>
+    <span class="tok-com"># rediscover the same host, and a de-duplicated set is what makes</span>
+    <span class="tok-com"># source tagging below mean something instead of double-reporting.</span>
+    all_subdomains = passive_subdomains | <span class="tok-fn">set</span>(active_map.keys())
+
+    results = []
+    <span class="tok-kw">for</span> name <span class="tok-kw">in</span> <span class="tok-fn">sorted</span>(all_subdomains):
+        in_passive = name <span class="tok-kw">in</span> passive_subdomains
+        in_active = name <span class="tok-kw">in</span> active_map
+
+        <span class="tok-kw">if</span> in_passive <span class="tok-kw">and</span> in_active:
+            source = <span class="tok-str">"crt.sh + DNS"</span>
+        <span class="tok-kw">elif</span> in_active:
+            source = <span class="tok-str">"DNS brute-force"</span>
+        <span class="tok-kw">else</span>:
+            source = <span class="tok-str">"crt.sh (passive)"</span>
+
+        <span class="tok-com"># A name from crt.sh with no active resolution is still worth</span>
+        <span class="tok-com"># reporting — it's a historical or dangling record, exactly the</span>
+        <span class="tok-com"># kind of leftover a subdomain takeover targets.</span>
+        ip = active_map.get(name, <span class="tok-str">"unresolved"</span>)
+        results.append(Result(name, ip, source))
+
+    <span class="tok-kw">return</span> results</code></pre>
+        </div>
+
+        <p>
+          The three-way source tag is what makes the output actionable instead of just a list of names. <code>"crt.sh + DNS"</code> is a high-confidence, currently-live host. <code>"DNS brute-force"</code> is a live host that was never certificate-logged — often an internal tool fronted by a self-signed cert. <code>"crt.sh (passive)"</code> with an <code>unresolved</code> IP is the most interesting bucket of all: a name that used to point somewhere and doesn't anymore, which is precisely the shape of a dangling DNS record a subdomain takeover targets.
+        </p>
+
+        <h2>Seeing It Run</h2>
+        <p>
+          Pointed at a target domain, the scanner detects a clean (non-wildcard) zone, pulls back a handful of certificate-logged hosts going back several years, confirms which of the 30 brute-forced prefixes currently resolve, and prints a merged table with every row tagged by source and every IP marked live or <code>unresolved</code>.
+        </p>
+
+        <figure class="article-figure">
+          <!-- TODO: Replace with terminal screenshot -->
+          <div class="article-figure__placeholder">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <rect x="2" y="4" width="20" height="16" rx="2" stroke="currentColor" stroke-width="1.5"/>
+              <path d="M6 9L9.5 12L6 15" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M12 15H17" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+            </svg>
+            <span class="article-figure__placeholder-text">Terminal screenshot placeholder — 16:9</span>
+          </div>
+          <figcaption>Discovering live and historical subdomains via crt.sh and DNS brute-forcing with subdomain_enum.py</figcaption>
+        </figure>
+
+        <h2>Remediation: Closing the Gaps It Finds</h2>
+        <p>
+          Every finding here maps to attack surface that's either unnecessarily exposed or unnecessarily alive. A dangling CNAME — a subdomain still pointing at a decommissioned cloud resource, like a deleted S3 bucket or an expired app-hosting instance — is the single highest-value fix, because it's an open invitation to subdomain takeover: whoever claims the now-unowned resource on the other end inherits the subdomain, cookies and all.
+        </p>
+
+        <div class="article-code-block">
+          <div class="article-code-block__header">
+            <span class="article-code-block__filename">zone-cleanup.txt</span>
+            <span class="article-code-block__lang">DNS</span>
+          </div>
+          <pre><code><span class="tok-com"># Before: a stale CNAME pointing at a resource that no longer exists —</span>
+<span class="tok-com"># this is exactly what subdomain_enum.py flags as "crt.sh (passive)"</span>
+<span class="tok-com"># with an unresolved IP, or a live resolution to someone else's infra.</span>
+old-app.example.com.    CNAME    old-app-bucket.s3-website.amazonaws.com.
+
+<span class="tok-com"># After: the record is deleted outright, not just the underlying</span>
+<span class="tok-com"># resource — a dangling CNAME with no destination is just as</span>
+<span class="tok-com"># claimable as one pointing at a live-but-unowned endpoint.</span>
+<span class="tok-com"># (remove the zone entry; nothing replaces it)</span></code></pre>
+        </div>
+
+        <p>
+          Two more habits close most of the rest. First, anything the scan tags as internal infrastructure — <code>jenkins</code>, <code>gitlab</code>, <code>grafana</code>, <code>jira</code>, <code>internal</code>, <code>kibana</code>, any admin or monitoring tool — has no reason to resolve on public DNS at all; put it behind a VPN or a Zero Trust proxy (Cloudflare Access, Tailscale, a WireGuard gateway) so the hostname might exist in a zone file but is unreachable without already being authenticated onto the network. Second, avoid wildcard DNS records unless a genuine multi-tenant architecture requires one — beyond defeating this exact kind of enumeration-based reconnaissance, a wildcard also means a single misconfigured catch-all can silently route traffic for a subdomain nobody intended to provision.
+        </p>
+
+        <!-- Repository CTA -->
+        <div class="article-cta-card">
+          <span class="cta-badge">Part 3 of 4 — Security Reconnaissance Suite</span>
+          <h3>subdomain_enum.py — Now on GitHub</h3>
+          <p>Full source, no dependencies beyond the standard library and <code>requests</code>. Clone it, point it at a domain you're authorized to test, and read the merged results yourself.</p>
+          <div class="cta-actions">
+            <a href="https://github.com/Artem-Kysylov/subdomain_enum" target="_blank" rel="noopener noreferrer" class="btn btn--primary">
+              View Source on GitHub
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <path d="M3 7H11M11 7L7.5 3.5M11 7L7.5 10.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </a>
+          </div>
+        </div>
+
+        <!-- Series Navigation -->
+        <div class="series-nav">
+          <p class="series-nav__title">Security Reconnaissance Suite — 4-Part Series</p>
+          <ul class="series-nav__list">
+            <li class="series-nav__item">
+              <a href="http-security-headers-analyzer.html" class="series-nav__label series-nav__label--link">
+                <span class="series-nav__index">01</span>HTTP Security Headers Analyzer
+              </a>
+              <span class="badge badge--read"><span class="badge__dot"></span>Available</span>
+            </li>
+            <li class="series-nav__item">
+              <a href="sensitive-files-config-checker.html" class="series-nav__label series-nav__label--link">
+                <span class="series-nav__index">02</span>Sensitive Files &amp; Config Checker
+              </a>
+              <span class="badge badge--read"><span class="badge__dot"></span>Available</span>
+            </li>
+            <li class="series-nav__item series-nav__item--active">
+              <span class="series-nav__label"><span class="series-nav__index">03</span>Hybrid Subdomain Enumerator</span>
+              <span class="badge badge--active"><span class="badge__dot"></span>Reading now</span>
+            </li>
+            <li class="series-nav__item">
+              <span class="series-nav__label"><span class="series-nav__index">04</span>Multi-Threaded Port &amp; Banner Scanner</span>
+              <span class="badge badge--building"><span class="badge__dot"></span>Coming soon</span>
+            </li>
+          </ul>
+        </div>
+
+      </article>
+
+      <!-- Social CTA -->
+      <div class="article-cta-card">
+        <span class="cta-badge">Follow the Journey</span>
+        <h3>Building in Public on YouTube &amp; X</h3>
+        <p>I document my transition to cybersecurity, Python automation, and retro devlogs in real-time. Join the community!</p>
+        <div class="cta-actions">
+          <a href="https://www.youtube.com/@Artem_AlwaysBuilding" target="_blank" rel="noopener noreferrer" class="btn btn--primary">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M23.495 6.205a3.007 3.007 0 0 0-2.088-2.088c-1.87-.501-9.396-.501-9.396-.501s-7.507-.01-9.396.501A3.007 3.007 0 0 0 .527 6.205a31.247 31.247 0 0 0-.522 5.805 31.247 31.247 0 0 0 .522 5.783 3.007 3.007 0 0 0 2.088 2.088c1.868.502 9.396.502 9.396.502s7.506 0 9.396-.502a3.007 3.007 0 0 0 2.088-2.088 31.247 31.247 0 0 0 .5-5.783 31.247 31.247 0 0 0-.5-5.805zM9.609 15.601V8.408l6.264 3.602z"/>
+            </svg>
+            Subscribe on YouTube
+          </a>
+          <a href="https://x.com/tabXport" target="_blank" rel="noopener noreferrer" class="btn btn--ghost">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.741l7.73-8.835L1.254 2.25H8.08l4.265 5.638 5.9-5.638Zm-1.161 17.52h1.833L7.084 4.126H5.117L17.083 19.77Z"/>
+            </svg>
+            Follow on X
+          </a>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+<!-- ============================================================
+       FOOTER
+       ============================================================ -->
+  <footer class="site-footer" role="contentinfo">
+    <div class="container">
+
+      <div class="footer-left">
+        <img src="/logo/logo.svg" alt="Syntax Labs" class="footer-logo" width="171" height="19" />
+        <span class="footer-copy">© 2026 Syntax Labs. All rights reserved.</span>
+        <a href="https://github.com/Artem-Kysylov/syntax-labs-vanilla-template" class="footer-template-link" target="_blank" rel="noopener noreferrer">Built with Syntax Vanilla Template</a>
+      </div>
+
+      <nav class="footer-nav" aria-label="Footer navigation">
+        <a href="/privacy.html" class="footer-link">Privacy Policy</a>
+        <a href="/terms.html" class="footer-link">Terms of Use</a>
+        <a href="mailto:hello@syntaxlabsapp.com" class="footer-link">Contact</a>
+      </nav>
+
+    </div>
+  </footer>
+
+</body>
+</html>
