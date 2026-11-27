@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <meta name="description" content="Inside port_scanner.py: a zero-dependency CLI tool that uses a 50-worker ThreadPoolExecutor and socket.connect_ex with a strict 1.0s timeout to scan 20 critical ports and grab service banners in under a second. Part 4 of the Security Reconnaissance Suite." />
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml" />
+
+  <meta property="og:type" content="article" />
+  <meta property="og:url" content="https://syntaxlabsapp.com/blog/multi-threaded-port-banner-scanner.html" />
+  <meta property="og:title" content="Multi-Threaded Port &amp; Banner Scanner: Finding Exposed Databases and Forgotten Dev Servers From the Command Line — Syntax Labs" />
+  <meta property="og:description" content="Concurrent TCP connect scanning with ThreadPoolExecutor, dual-mode banner grabbing, and high-value port targeting inside port_scanner.py — a zero-dependency CLI recon tool." />
+  <meta property="og:image" content="https://syntaxlabsapp.com/open-graph.png" />
+
+  <title>Multi-Threaded Port &amp; Banner Scanner: Finding Exposed Databases and Forgotten Dev Servers From the Command Line — Syntax Labs</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="../styles.css" />
+</head>
+
+<body>
+
+  <!-- ============================================================
+       HEADER
+       ============================================================ -->
+  <header class="site-header" role="banner">
+    <div class="container">
+
+      <!-- Logo -->
+      <a href="/" class="logo" aria-label="Syntax Labs — home">
+        <img src="/logo/logo.svg" alt="" class="logo__image" width="171" height="19" />
+      </a>
+
+      <!-- Navigation -->
+      <nav class="site-nav" role="navigation" aria-label="Primary navigation">
+
+        <!-- Twitter / X -->
+        <a
+          href="https://x.com/tabXport"
+          class="nav-link"
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Follow us on X (Twitter)"
+        >
+          <svg viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.741l7.73-8.835L1.254 2.25H8.08l4.265 5.638 5.9-5.638Zm-1.161 17.52h1.833L7.084 4.126H5.117L17.083 19.77Z"/>
+          </svg>
+          <span>Twitter</span>
+        </a>
+
+        <!-- YouTube -->
+        <a
+          href="https://www.youtube.com/@Artem_AlwaysBuilding"
+          class="nav-link"
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Watch us on YouTube"
+        >
+          <svg viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <path d="M23.495 6.205a3.007 3.007 0 0 0-2.088-2.088c-1.87-.501-9.396-.501-9.396-.501s-7.507-.01-9.396.501A3.007 3.007 0 0 0 .527 6.205a31.247 31.247 0 0 0-.522 5.805 31.247 31.247 0 0 0 .522 5.783 3.007 3.007 0 0 0 2.088 2.088c1.868.502 9.396.502 9.396.502s7.506 0 9.396-.502a3.007 3.007 0 0 0 2.088-2.088 31.247 31.247 0 0 0 .5-5.783 31.247 31.247 0 0 0-.5-5.805zM9.609 15.601V8.408l6.264 3.602z"/>
+          </svg>
+          <span>YouTube</span>
+        </a>
+
+        <!-- GitHub -->
+        <a
+          href="https://github.com/Artem-Kysylov"
+          class="nav-link"
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Find us on GitHub"
+        >
+          <svg viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/>
+          </svg>
+          <span>GitHub</span>
+        </a>
+
+      </nav>
+    </div>
+  </header>
+
+  <!-- MAIN ARTICLE CONTENT -->
+  <main class="article-page">
+    <div class="article-container">
+
+      <a href="/" class="article-back">
+        ← Back to Syntax Labs
+      </a>
+
+      <header class="article-header">
+        <div class="journal-card__meta">
+          <span class="journal-tag">#cybersecurity</span>
+          <span class="journal-date">Nov 27, 2026 • 8 min read</span>
+        </div>
+        <h1 class="article-title">
+          Multi-Threaded Port &amp; Banner Scanner: Finding Exposed Databases and Forgotten Dev Servers From the Command Line
+        </h1>
+        <p style="color: #a1a1aa; font-size: 0.95rem;">By Artem Kysylov</p>
+      </header>
+
+      <!-- ARTICLE BODY -->
+      <article class="article-body">
+
+        <p>
+          Headers, sensitive paths, and subdomains all tell you about a <em>host</em>. None of them tell you what's actually listening on it. Once a target's domains and subdomains are mapped, the next question is the one that turns a list of hostnames into a list of real attack surface: which ports are open, and what's actually answering on them? A <code>staging.example.com</code> that resolves is interesting. A <code>staging.example.com</code> with Redis listening on <code>6379</code> with no authentication is a finding.
+        </p>
+        <p>
+          That's what <strong>Multi-Threaded Port &amp; Banner Scanner</strong> (<code>port_scanner.py</code>) closes out the suite with. It's a CLI tool that connects to a curated set of high-value ports in parallel, and for every port that answers, grabs whatever the service running on it is willing to say about itself — a Redis version string, an SSH banner, an HTTP <code>Server</code> header from a dev server nobody remembered to take down. It's built with zero third-party dependencies, entirely on Python's standard-library <code>socket</code> and <code>concurrent.futures</code> modules, which means it runs anywhere a Python interpreter does — no <code>pip install</code>, no compiled network stack, just fast and portable TCP recon. Below is a breakdown of how it's built, followed by the terminal output and the hardening steps that close what it finds.
+        </p>
+
+        <h2>Why Port Scanning Is the Last Mile of Recon</h2>
+        <p>
+          A domain or subdomain is just a name until something is confirmed to be listening behind it. Port scanning is what converts a hostname into an actual service inventory — and in practice, the services worth finding aren't the ones the target intended to expose. They're the database engine that was supposed to stay behind an app server, the Redis instance spun up for local testing and never firewalled off, the dev server on <code>3000</code> or <code>8080</code> left running on a box that's technically public. None of those show up in a header audit or a sensitive-file check, because none of them speak HTTP at all.
+        </p>
+        <p>
+          A full <code>1</code>–<code>65535</code> port sweep would find all of this eventually, but it buys that completeness with minutes of noisy traffic per host — most of which lands on ports nothing has ever run on. <code>port_scanner.py</code> takes the opposite bet: scan only the 20 ports that actually correlate with a real finding, and spend the time saved on confirming what's behind each one instead of how many closed ports surround it.
+        </p>
+
+        <blockquote>
+          "An open port is a question. A banner is the answer. A scanner that reports port 6379 as 'open' and stops there has done half the job — the other half is finding out it's an unauthenticated Redis instance before someone else does."
+        </blockquote>
+
+        <h2>Architecture &amp; Code Breakdown</h2>
+        <p>
+          <code>port_scanner.py</code> is built around three cooperating pieces: a concurrent connect-scan layer that checks 20 ports in parallel instead of one at a time, a dual-mode banner grabber that knows the difference between a service that talks first and one that has to be asked, and a deliberately short, deliberately high-value port list that keeps the whole scan fast. Here's how each one works.
+        </p>
+
+        <h3>1. Concurrent TCP Connect Scanning</h3>
+        <p>
+          Scanning 20 ports serially, each with its own connection timeout, would make the slowest case — a host that drops every packet silently — take as long as 20 timeouts stacked end to end. <code>scan</code> avoids that by handing every port to a 50-worker thread pool at once; the slowest case becomes one timeout, not twenty, because every socket is waiting out its own clock in parallel.
+        </p>
+
+        <div class="article-code-block">
+          <div class="article-code-block__header">
+            <span class="article-code-block__filename">port_scanner.py</span>
+            <span class="article-code-block__lang">Python</span>
+          </div>
+          <pre><code><span class="tok-com"># A 1.0s connect timeout is tight enough to keep a full scan fast,</span>
+<span class="tok-com"># but still generous relative to a real TCP handshake — a filtered</span>
+<span class="tok-com"># port (dropped, not refused) is the only case that ever burns it.</span>
+CONNECT_TIMEOUT = <span class="tok-num">1.0</span>
+MAX_WORKERS = <span class="tok-num">50</span>
+
+
+<span class="tok-kw">def</span> <span class="tok-fn">_scan_port</span>(<span class="tok-kw">self</span>, host: <span class="tok-fn">str</span>, port: <span class="tok-fn">int</span>) -&gt; PortResult | <span class="tok-kw">None</span>:
+    <span class="tok-com">"""connect_ex returns an error code instead of raising, which is</span>
+<span class="tok-com">    what makes it safe to call 20 times across 50 threads without a</span>
+<span class="tok-com">    single refused connection turning into an exception to catch."""</span>
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.settimeout(CONNECT_TIMEOUT)
+    <span class="tok-kw">try</span>:
+        <span class="tok-kw">if</span> sock.connect_ex((host, port)) != <span class="tok-num">0</span>:
+            <span class="tok-kw">return</span> <span class="tok-kw">None</span>
+        banner = <span class="tok-kw">self</span>._grab_banner(sock, port)
+        <span class="tok-kw">return</span> PortResult(port, COMMON_PORTS.get(port, <span class="tok-str">"unknown"</span>), banner)
+    <span class="tok-kw">finally</span>:
+        sock.close()
+
+
+<span class="tok-kw">def</span> <span class="tok-fn">scan</span>(<span class="tok-kw">self</span>, host: <span class="tok-fn">str</span>) -&gt; <span class="tok-fn">list</span>[PortResult]:
+    <span class="tok-com"># Scanned serially, a fully filtered host costs 20 * 1.0s ≈ 20s.</span>
+    <span class="tok-com"># Fanned out across 50 workers, it costs about as long as the</span>
+    <span class="tok-com"># single slowest connection attempt.</span>
+    start = time.perf_counter()
+    open_ports: <span class="tok-fn">list</span>[PortResult] = []
+
+    <span class="tok-kw">with</span> ThreadPoolExecutor(max_workers=MAX_WORKERS) <span class="tok-kw">as</span> pool:
+        futures = {
+            pool.submit(<span class="tok-kw">self</span>._scan_port, host, port): port
+            <span class="tok-kw">for</span> port <span class="tok-kw">in</span> COMMON_PORTS
+        }
+        <span class="tok-kw">for</span> future <span class="tok-kw">in</span> as_completed(futures):
+            result = future.result()
+            <span class="tok-kw">if</span> result:
+                open_ports.append(result)
+
+    <span class="tok-kw">self</span>.elapsed = time.perf_counter() - start
+    <span class="tok-kw">return</span> <span class="tok-fn">sorted</span>(open_ports, key=<span class="tok-kw">lambda</span> r: r.port)</code></pre>
+        </div>
+
+        <p>
+          <code>as_completed</code> matters as much as the pool size — results get collected in whatever order the sockets actually resolve, not in port order, which means the scanner never sits waiting on port <code>21</code> while ports <code>3306</code> and <code>6379</code> have already answered. <code>time.perf_counter()</code> around the whole pool is what turns "it felt fast" into a number worth printing next to the results.
+        </p>
+
+        <h3>2. Dual-Mode Banner Grabbing</h3>
+        <p>
+          An open port by itself only confirms that something is listening. The banner is what confirms <em>what</em> — and different services volunteer that information in opposite ways. SSH, FTP, and SMTP are chatty: they send a greeting line the instant a connection completes, before the client says anything at all. HTTP and the dev servers that speak it are silent by default — nothing comes back until a request is actually sent. <code>_grab_banner</code> treats those as two distinct code paths instead of forcing both through one <code>recv()</code> call.
+        </p>
+
+        <div class="article-code-block">
+          <div class="article-code-block__header">
+            <span class="article-code-block__filename">port_scanner.py</span>
+            <span class="article-code-block__lang">Python</span>
+          </div>
+          <pre><code><span class="tok-com"># Ports where nothing is said until something is asked — sending</span>
+<span class="tok-com"># a minimal HEAD probe is the only way to see what's running here.</span>
+WEB_PORTS = {<span class="tok-num">80</span>, <span class="tok-num">3000</span>, <span class="tok-num">5000</span>, <span class="tok-num">8000</span>, <span class="tok-num">8080</span>, <span class="tok-num">8443</span>}
+
+
+<span class="tok-kw">def</span> <span class="tok-fn">_grab_banner</span>(<span class="tok-kw">self</span>, sock: socket.socket, port: <span class="tok-fn">int</span>) -&gt; <span class="tok-fn">str</span>:
+    <span class="tok-kw">try</span>:
+        <span class="tok-kw">if</span> port <span class="tok-kw">in</span> WEB_PORTS:
+            <span class="tok-com"># HTTP/1.1 requires a Host header even for a throwaway probe —</span>
+            <span class="tok-com"># skip it and a virtual-host setup just drops the connection</span>
+            <span class="tok-com"># instead of answering.</span>
+            request = (
+                <span class="tok-fn">f</span><span class="tok-str">"HEAD / HTTP/1.1\r\nHost: {sock.getpeername()[0]}\r\n"</span>
+                <span class="tok-str">"Connection: close\r\n\r\n"</span>
+            )
+            sock.sendall(request.encode())
+            response = sock.recv(<span class="tok-num">1024</span>).decode(errors=<span class="tok-str">"ignore"</span>)
+
+            <span class="tok-kw">for</span> line <span class="tok-kw">in</span> response.split(<span class="tok-str">"\r\n"</span>):
+                <span class="tok-kw">if</span> line.lower().startswith(<span class="tok-str">"server:"</span>):
+                    <span class="tok-kw">return</span> line.split(<span class="tok-str">":"</span>, <span class="tok-num">1</span>)[<span class="tok-num">1</span>].strip()
+            <span class="tok-kw">return</span> <span class="tok-str">"no Server header"</span>
+
+        <span class="tok-com"># SSH, FTP, SMTP and friends greet first — reading immediately</span>
+        <span class="tok-com"># is the whole job, there's nothing to send.</span>
+        <span class="tok-kw">return</span> sock.recv(<span class="tok-num">1024</span>).decode(errors=<span class="tok-str">"ignore"</span>).strip()
+
+    <span class="tok-kw">except</span> (socket.timeout, OSError):
+        <span class="tok-kw">return</span> <span class="tok-str">"no banner"</span></code></pre>
+        </div>
+
+        <p>
+          The payoff of the active branch isn't just confirming a web server exists — it's reading the <code>Server:</code> header the same way a browser never bothers to show you. A dev server on <code>3000</code> or <code>8080</code> answering with <code>Werkzeug/2.0.1 Python/3.9.2</code> is a specific, versioned piece of software an attacker can look up CVEs for, and that string only surfaces because something asked.
+        </p>
+
+        <h3>3. High-Value Attack Surface Targeting</h3>
+        <p>
+          The port list is the other half of why this scan stays fast: 20 entries, chosen for how often they correlate with a real finding, not a full well-known-port dump. Exposed databases (<code>3306</code> MySQL, <code>5432</code> PostgreSQL, <code>6379</code> Redis, <code>27017</code> MongoDB) are included because all four ship with authentication disabled or trivially bypassable by default on a fresh install. Remote access ports (<code>22</code> SSH, <code>3389</code> RDP, <code>445</code> SMB) are included because they're the most common target for credential-stuffing once a host is found alive. And the dev-server ports (<code>3000</code>, <code>5000</code>, <code>8080</code>, among others) are included because they're the ones most likely to still be running in production, weeks after whoever started them for local testing forgot they existed.
+        </p>
+
+        <div class="article-code-block">
+          <div class="article-code-block__header">
+            <span class="article-code-block__filename">port_scanner.py</span>
+            <span class="article-code-block__lang">Python</span>
+          </div>
+          <pre><code><span class="tok-com"># 20 high-impact ports, not a 1-65535 sweep — every entry here</span>
+<span class="tok-com"># correlates with either an exposed database, a remote-access</span>
+<span class="tok-com"># surface, or a forgotten dev server left running past its purpose.</span>
+COMMON_PORTS = {
+    <span class="tok-num">21</span>:    <span class="tok-str">"FTP"</span>,
+    <span class="tok-num">22</span>:    <span class="tok-str">"SSH"</span>,
+    <span class="tok-num">23</span>:    <span class="tok-str">"Telnet"</span>,
+    <span class="tok-num">25</span>:    <span class="tok-str">"SMTP"</span>,
+    <span class="tok-num">53</span>:    <span class="tok-str">"DNS"</span>,
+    <span class="tok-num">80</span>:    <span class="tok-str">"HTTP"</span>,
+    <span class="tok-num">110</span>:   <span class="tok-str">"POP3"</span>,
+    <span class="tok-num">143</span>:   <span class="tok-str">"IMAP"</span>,
+    <span class="tok-num">443</span>:   <span class="tok-str">"HTTPS"</span>,
+    <span class="tok-num">445</span>:   <span class="tok-str">"SMB"</span>,
+    <span class="tok-num">3000</span>:  <span class="tok-str">"Dev Server"</span>,
+    <span class="tok-num">3306</span>:  <span class="tok-str">"MySQL"</span>,
+    <span class="tok-num">3389</span>:  <span class="tok-str">"RDP"</span>,
+    <span class="tok-num">5000</span>:  <span class="tok-str">"Dev Server"</span>,
+    <span class="tok-num">5432</span>:  <span class="tok-str">"PostgreSQL"</span>,
+    <span class="tok-num">6379</span>:  <span class="tok-str">"Redis"</span>,
+    <span class="tok-num">8000</span>:  <span class="tok-str">"Dev Server"</span>,
+    <span class="tok-num">8080</span>:  <span class="tok-str">"HTTP-Alt"</span>,
+    <span class="tok-num">8443</span>:  <span class="tok-str">"HTTPS-Alt"</span>,
+    <span class="tok-num">27017</span>: <span class="tok-str">"MongoDB"</span>,
+}</code></pre>
+        </div>
+
+        <p>
+          This is a deliberate trade against completeness. A full sweep might eventually find a service running on a non-standard port; this list finds everything that matters on the ports that matter, in roughly the time a full sweep spends scanning the first few hundred closed ones.
+        </p>
+
+        <h2>Seeing It Run</h2>
+        <p>
+          Pointed at <code>scanme.nmap.org</code> — Nmap's own public test host, explicitly left online for exactly this kind of scan — the tool connects across all 20 ports in parallel, confirms which ones are actually open, grabs an SSH banner and an HTTP <code>Server</code> header where available, and prints the whole run's elapsed time next to the results.
+        </p>
+
+        <figure class="article-figure">
+          <!-- TODO: Replace with terminal screenshot -->
+          <div class="article-figure__placeholder">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <rect x="2" y="4" width="20" height="16" rx="2" stroke="currentColor" stroke-width="1.5"/>
+              <path d="M6 9L9.5 12L6 15" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M12 15H17" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+            </svg>
+            <span class="article-figure__placeholder-text">Terminal screenshot placeholder — 16:9</span>
+          </div>
+          <figcaption>Scanning open TCP ports and grabbing service banners on scanme.nmap.org with port_scanner.py</figcaption>
+        </figure>
+
+        <h2>Remediation: Closing the Gaps It Finds</h2>
+        <p>
+          Every open port this scanner reports maps to one of two fixes: the service shouldn't be reachable from where the scan ran, or it shouldn't be saying as much as it is. Databases and caches are the highest-priority case — none of them belong on a public interface at all. Binding to loopback, or to a private VPC subnet reachable only from the application tier, removes the exposure entirely instead of relying on an application-layer password:
+        </p>
+
+        <div class="article-code-block">
+          <div class="article-code-block__header">
+            <span class="article-code-block__filename">/etc/redis/redis.conf</span>
+            <span class="article-code-block__lang">Config</span>
+          </div>
+          <pre><code><span class="tok-com"># Default is often 0.0.0.0 or no bind directive at all — explicitly</span>
+<span class="tok-com"># restrict to loopback (or a private VPC CIDR) so the port scanner's</span>
+<span class="tok-com"># equivalent on the public internet never gets a SYN-ACK back.</span>
+bind <span class="tok-num">127.0</span>.<span class="tok-num">0.1</span> -::<span class="tok-num">1</span>
+protected-mode <span class="tok-kw">yes</span>
+requirepass <span class="tok-str">change-this-to-a-strong-password</span>
+
+<span class="tok-com"># Same principle for MongoDB, in /etc/mongod.conf:</span>
+<span class="tok-com">#   net.bindIp: 127.0.0.1,10.0.1.0/24</span></code></pre>
+        </div>
+
+        <p>
+          Dev-server ports are the second-highest priority, precisely because they're the ones nobody remembers to close. A host-level firewall rule that denies everything except the ports actually meant to be public closes <code>3000</code>, <code>5000</code>, and <code>8080</code> by policy instead of by memory:
+        </p>
+
+        <div class="article-code-block">
+          <div class="article-code-block__header">
+            <span class="article-code-block__filename">firewall-rules.sh</span>
+            <span class="article-code-block__lang">Bash</span>
+          </div>
+          <pre><code><span class="tok-com"># Default-deny, then allow only what's actually meant to be public —</span>
+<span class="tok-com"># a forgotten `npm run dev` or `flask run` on 3000/5000/8080 never</span>
+<span class="tok-com"># gets a route to the outside world in the first place.</span>
+ufw default deny incoming
+ufw allow <span class="tok-num">22</span>/tcp    <span class="tok-com"># SSH — restrict further to a known IP range if possible</span>
+ufw allow <span class="tok-num">443</span>/tcp   <span class="tok-com"># HTTPS</span>
+ufw deny <span class="tok-num">3000</span>,<span class="tok-num">5000</span>,<span class="tok-num">8000</span>,<span class="tok-num">8080</span>/tcp
+ufw enable</code></pre>
+        </div>
+
+        <p>
+          Last, for whatever is left deliberately public, suppress the version string the banner grab actually read. Nginx's <code>server_tokens off</code> from Part 1 applies equally here, and the same instinct extends to every service: SSH's <code>Banner none</code> directive, MySQL's <code>--skip-version-suffix-removal=false</code> quirks aside, most daemons have a config flag to stop announcing their exact build the moment a socket connects. None of it stops a determined attacker from fingerprinting the service some other way — but it removes the free, zero-effort version lookup this exact tool just demonstrated.
+        </p>
+
+        <!-- Repository CTA -->
+        <div class="article-cta-card">
+          <span class="cta-badge">Part 4 of 4 — Security Reconnaissance Suite</span>
+          <h3>port_scanner.py — Now on GitHub</h3>
+          <p>Full source, zero third-party dependencies — just Python's standard library. Clone it, point it at a host you're authorized to test, and read the open ports and banners yourself.</p>
+          <div class="cta-actions">
+            <a href="https://github.com/Artem-Kysylov/port_scanner" target="_blank" rel="noopener noreferrer" class="btn btn--primary">
+              View Source on GitHub
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <path d="M3 7H11M11 7L7.5 3.5M11 7L7.5 10.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </a>
+          </div>
+        </div>
+
+        <!-- Series Navigation -->
+        <div class="series-nav">
+          <p class="series-nav__title">Security Reconnaissance Suite — 4-Part Series</p>
+          <ul class="series-nav__list">
+            <li class="series-nav__item">
+              <a href="http-security-headers-analyzer.html" class="series-nav__label series-nav__label--link">
+                <span class="series-nav__index">01</span>HTTP Security Headers Analyzer
+              </a>
+              <span class="badge badge--read"><span class="badge__dot"></span>Available</span>
+            </li>
+            <li class="series-nav__item">
+              <a href="sensitive-files-config-checker.html" class="series-nav__label series-nav__label--link">
+                <span class="series-nav__index">02</span>Sensitive Files &amp; Config Checker
+              </a>
+              <span class="badge badge--read"><span class="badge__dot"></span>Available</span>
+            </li>
+            <li class="series-nav__item">
+              <a href="hybrid-subdomain-enumerator.html" class="series-nav__label series-nav__label--link">
+                <span class="series-nav__index">03</span>Hybrid Subdomain Enumerator
+              </a>
+              <span class="badge badge--read"><span class="badge__dot"></span>Available</span>
+            </li>
+            <li class="series-nav__item series-nav__item--active">
+              <span class="series-nav__label"><span class="series-nav__index">04</span>Multi-Threaded Port &amp; Banner Scanner</span>
+              <span class="badge badge--active"><span class="badge__dot"></span>Reading now</span>
+            </li>
+          </ul>
+        </div>
+
+      </article>
+
+      <!-- Social CTA -->
+      <div class="article-cta-card">
+        <span class="cta-badge">Follow the Journey</span>
+        <h3>Building in Public on YouTube &amp; X</h3>
+        <p>I document my transition to cybersecurity, Python automation, and retro devlogs in real-time. Join the community!</p>
+        <div class="cta-actions">
+          <a href="https://www.youtube.com/@Artem_AlwaysBuilding" target="_blank" rel="noopener noreferrer" class="btn btn--primary">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M23.495 6.205a3.007 3.007 0 0 0-2.088-2.088c-1.87-.501-9.396-.501-9.396-.501s-7.507-.01-9.396.501A3.007 3.007 0 0 0 .527 6.205a31.247 31.247 0 0 0-.522 5.805 31.247 31.247 0 0 0 .522 5.783 3.007 3.007 0 0 0 2.088 2.088c1.868.502 9.396.502 9.396.502s7.506 0 9.396-.502a3.007 3.007 0 0 0 2.088-2.088 31.247 31.247 0 0 0 .5-5.783 31.247 31.247 0 0 0-.5-5.805zM9.609 15.601V8.408l6.264 3.602z"/>
+            </svg>
+            Subscribe on YouTube
+          </a>
+          <a href="https://x.com/tabXport" target="_blank" rel="noopener noreferrer" class="btn btn--ghost">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.741l7.73-8.835L1.254 2.25H8.08l4.265 5.638 5.9-5.638Zm-1.161 17.52h1.833L7.084 4.126H5.117L17.083 19.77Z"/>
+            </svg>
+            Follow on X
+          </a>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+<!-- ============================================================
+       FOOTER
+       ============================================================ -->
+  <footer class="site-footer" role="contentinfo">
+    <div class="container">
+
+      <div class="footer-left">
+        <img src="/logo/logo.svg" alt="Syntax Labs" class="footer-logo" width="171" height="19" />
+        <span class="footer-copy">© 2026 Syntax Labs. All rights reserved.</span>
+        <a href="https://github.com/Artem-Kysylov/syntax-labs-vanilla-template" class="footer-template-link" target="_blank" rel="noopener noreferrer">Built with Syntax Vanilla Template</a>
+      </div>
+
+      <nav class="footer-nav" aria-label="Footer navigation">
+        <a href="/privacy.html" class="footer-link">Privacy Policy</a>
+        <a href="/terms.html" class="footer-link">Terms of Use</a>
+        <a href="mailto:hello@syntaxlabsapp.com" class="footer-link">Contact</a>
+      </nav>
+
+    </div>
+  </footer>
+
+</body>
+</html>
