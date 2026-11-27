@@ -2072,6 +2072,20 @@ button { cursor: pointer; font-family: inherit; }
 
 .article-figure {
   margin: 40px 0;
+  height: auto;
+  max-height: none;
+  aspect-ratio: auto;
+}
+
+.article-figure img {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: none;
+  aspect-ratio: auto;
+  object-fit: contain;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-hover);
 }
 
 .article-figure__placeholder {
