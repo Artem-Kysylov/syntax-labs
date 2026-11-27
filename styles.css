@@ -707,6 +707,12 @@ button { cursor: pointer; font-family: inherit; }
   border:       1px solid rgba(251, 191, 36, 0.2);
 }
 
+.badge--read {
+  background:   rgba(255, 255, 255, 0.05);
+  color:        var(--text-muted);
+  border:       1px solid var(--border);
+}
+
 .badge__dot {
   width:         5px;
   height:        5px;
@@ -1988,6 +1994,7 @@ button { cursor: pointer; font-family: inherit; }
 }
 
 .reveal-delay-5 { transition-delay: 0.5s; }
+.reveal-delay-6 { transition-delay: 0.6s; }
 
 /* ============================================================
    ARTICLE CODE BLOCKS
@@ -2179,6 +2186,15 @@ button { cursor: pointer; font-family: inherit; }
 .series-nav__item--active .series-nav__label {
   color: var(--text-bright);
   font-weight: 600;
+}
+
+.series-nav__label--link {
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.series-nav__label--link:hover {
+  color: var(--text-bright);
 }
 
 @media (max-width: 768px) {
