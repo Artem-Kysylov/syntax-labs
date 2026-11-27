@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <meta name="description" content="Inside header_scanner.py: a CLI tool that audits HTTP response headers, assigns a weighted A-F security grade, and flags server fingerprinting leaks. Part 1 of the Security Reconnaissance Suite." />
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml" />
+
+  <meta property="og:type" content="article" />
+  <meta property="og:url" content="https://syntaxlabsapp.com/blog/http-security-headers-analyzer.html" />
+  <meta property="og:title" content="HTTP Security Headers Analyzer: Grading a Site's Security Posture From the Command Line — Syntax Labs" />
+  <meta property="og:description" content="Weighted A-F scoring, context-aware header validation, and fingerprint-leak detection inside header_scanner.py — a CLI recon tool." />
+  <meta property="og:image" content="https://syntaxlabsapp.com/open-graph.png" />
+
+  <title>HTTP Security Headers Analyzer: Grading a Site's Security Posture From the Command Line — Syntax Labs</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="../styles.css" />
+</head>
+
+<body>
+
+  <!-- ============================================================
+       HEADER
+       ============================================================ -->
+  <header class="site-header" role="banner">
+    <div class="container">
+
+      <!-- Logo -->
+      <a href="/" class="logo" aria-label="Syntax Labs — home">
+        <img src="/logo/logo.svg" alt="" class="logo__image" width="171" height="19" />
+      </a>
+
+      <!-- Navigation -->
+      <nav class="site-nav" role="navigation" aria-label="Primary navigation">
+
+        <!-- Twitter / X -->
+        <a
+          href="https://x.com/tabXport"
+          class="nav-link"
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Follow us on X (Twitter)"
+        >
+          <svg viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.741l7.73-8.835L1.254 2.25H8.08l4.265 5.638 5.9-5.638Zm-1.161 17.52h1.833L7.084 4.126H5.117L17.083 19.77Z"/>
+          </svg>
+          <span>Twitter</span>
+        </a>
+
+        <!-- YouTube -->
+        <a
+          href="https://www.youtube.com/@Artem_AlwaysBuilding"
+          class="nav-link"
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Watch us on YouTube"
+        >
+          <svg viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <path d="M23.495 6.205a3.007 3.007 0 0 0-2.088-2.088c-1.87-.501-9.396-.501-9.396-.501s-7.507-.01-9.396.501A3.007 3.007 0 0 0 .527 6.205a31.247 31.247 0 0 0-.522 5.805 31.247 31.247 0 0 0 .522 5.783 3.007 3.007 0 0 0 2.088 2.088c1.868.502 9.396.502 9.396.502s7.506 0 9.396-.502a3.007 3.007 0 0 0 2.088-2.088 31.247 31.247 0 0 0 .5-5.783 31.247 31.247 0 0 0-.5-5.805zM9.609 15.601V8.408l6.264 3.602z"/>
+          </svg>
+          <span>YouTube</span>
+        </a>
+
+        <!-- GitHub -->
+        <a
+          href="https://github.com/Artem-Kysylov"
+          class="nav-link"
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Find us on GitHub"
+        >
+          <svg viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/>
+          </svg>
+          <span>GitHub</span>
+        </a>
+
+      </nav>
+    </div>
+  </header>
+
+  <!-- MAIN ARTICLE CONTENT -->
+  <main class="article-page">
+    <div class="article-container">
+
+      <a href="/" class="article-back">
+        ← Back to Syntax Labs
+      </a>
+
+      <header class="article-header">
+        <div class="journal-card__meta">
+          <span class="journal-tag">#cybersecurity</span>
+          <span class="journal-date">Nov 27, 2026 • 7 min read</span>
+        </div>
+        <h1 class="article-title">
+          HTTP Security Headers Analyzer: Grading a Site's Security Posture From the Command Line
+        </h1>
+        <p style="color: #a1a1aa; font-size: 0.95rem;">By Artem Kysylov</p>
+      </header>
+
+      <!-- ARTICLE BODY -->
+      <article class="article-body">
+
+        <p>
+          Before anyone touches a login form or fuzzes an API, real reconnaissance starts somewhere far less glamorous: the response headers a server hands back on a plain <code>GET /</code>. Headers are the server talking about itself — what protections it enforces, what framework rendered the page, sometimes even the exact patch version it's running. Most of that chatter is unintentional, and almost none of it gets reviewed after the initial deploy.
+        </p>
+        <p>
+          That gap is exactly what <strong>HTTP Security Headers Analyzer</strong> (<code>header_scanner.py</code>) targets. It's a CLI tool that sends a single request, reads the headers that come back, and turns them into two things an engineer can actually act on: a weighted <code>A</code>–<code>F</code> grade for the site's defensive header posture, and a flagged list of anything the server is leaking about its own stack. Below is a breakdown of how it's built, followed by the real terminal output and some remediation notes for closing the gaps it finds.
+        </p>
+
+        <h2>Why Header Auditing Is a Recon Fundamental</h2>
+        <p>
+          Response headers do two very different jobs, and most scanners conflate them. The first job is defensive: headers like <code>Content-Security-Policy</code> and <code>Strict-Transport-Security</code> tell the browser how to behave on the user's behalf — refuse to frame this page, refuse to downgrade to HTTP, refuse to sniff a response into executing as a script. Skip one, and you haven't just failed a checklist item; you've left a specific class of attack enabled by default.
+        </p>
+        <p>
+          The second job is accidental disclosure. A <code>Server: Apache/2.4.41 (Ubuntu)</code> or <code>X-Powered-By: Express</code> header doesn't protect anything — it just tells an attacker which CVE database to open first. Neither problem shows up in a quick glance at the page in a browser. Both show up instantly in <code>curl -I</code>, which is exactly why they're one of the first things a real engagement — or a real attacker — checks before anything else.
+        </p>
+
+        <blockquote>
+          "A missing Content-Security-Policy and an exposed Server banner look like the same kind of oversight. They are not the same kind of risk — and a scanner that treats them identically is lying to you with a grade."
+        </blockquote>
+
+        <h2>Architecture &amp; Code Breakdown</h2>
+        <p>
+          <code>header_scanner.py</code> is built around three cooperating pieces: a weighted scoring table that turns missing headers into a defensible grade, a validation layer that reads header <em>values</em> instead of just checking for presence, and a fingerprinting pass that hunts for anything the server shouldn't be announcing. Here's how each one works.
+        </p>
+
+        <h3>1. Weighted Security Scoring</h3>
+        <p>
+          Not every missing header is equally dangerous, so the grade isn't a flat count of pass/fail checks. Each header in <code>SECURITY_HEADERS</code> carries its own penalty weight, scaled to how much damage its absence actually enables — a missing CSP costs more than a missing <code>Referrer-Policy</code> because it closes off a far broader class of injection attacks.
+        </p>
+
+        <div class="article-code-block">
+          <div class="article-code-block__header">
+            <span class="article-code-block__filename">header_scanner.py</span>
+            <span class="article-code-block__lang">Python</span>
+          </div>
+          <pre><code><span class="tok-com"># Penalty weights reflect real-world exploit impact, not alphabetical</span>
+<span class="tok-com"># order — a missing CSP is a far bigger hole than a missing Referrer-Policy.</span>
+SECURITY_HEADERS = {
+    <span class="tok-str">"Content-Security-Policy"</span>:   {<span class="tok-str">"weight"</span>: <span class="tok-num">25</span>, <span class="tok-str">"category"</span>: <span class="tok-str">"injection"</span>},
+    <span class="tok-str">"Strict-Transport-Security"</span>: {<span class="tok-str">"weight"</span>: <span class="tok-num">20</span>, <span class="tok-str">"category"</span>: <span class="tok-str">"transport"</span>},
+    <span class="tok-str">"X-Frame-Options"</span>:           {<span class="tok-str">"weight"</span>: <span class="tok-num">15</span>, <span class="tok-str">"category"</span>: <span class="tok-str">"clickjacking"</span>},
+    <span class="tok-str">"X-Content-Type-Options"</span>:    {<span class="tok-str">"weight"</span>: <span class="tok-num">15</span>, <span class="tok-str">"category"</span>: <span class="tok-str">"mime-sniffing"</span>},
+    <span class="tok-str">"Permissions-Policy"</span>:        {<span class="tok-str">"weight"</span>: <span class="tok-num">15</span>, <span class="tok-str">"category"</span>: <span class="tok-str">"feature-abuse"</span>},
+    <span class="tok-str">"Referrer-Policy"</span>:           {<span class="tok-str">"weight"</span>: <span class="tok-num">10</span>, <span class="tok-str">"category"</span>: <span class="tok-str">"leakage"</span>},
+}
+
+
+<span class="tok-kw">class</span> <span class="tok-fn">AuditReport</span>:
+    <span class="tok-com">"""Accumulates findings for a single scanned host and converts</span>
+<span class="tok-com">    the running score into a letter grade."""</span>
+
+    <span class="tok-kw">def</span> <span class="tok-fn">__init__</span>(<span class="tok-kw">self</span>, host: <span class="tok-fn">str</span>):
+        <span class="tok-kw">self</span>.host = host
+        <span class="tok-kw">self</span>.findings: list[Finding] = []
+        <span class="tok-kw">self</span>.score = <span class="tok-num">100</span>
+
+    <span class="tok-kw">def</span> <span class="tok-fn">deduct</span>(<span class="tok-kw">self</span>, weight: <span class="tok-fn">int</span>, reason: <span class="tok-fn">str</span>) -&gt; <span class="tok-kw">None</span>:
+        <span class="tok-kw">self</span>.score = <span class="tok-fn">max</span>(<span class="tok-num">0</span>, <span class="tok-kw">self</span>.score - weight)
+        <span class="tok-kw">self</span>.findings.append(Finding(weight, reason))
+
+    <span class="tok-kw">def</span> <span class="tok-fn">grade</span>(<span class="tok-kw">self</span>) -&gt; <span class="tok-fn">str</span>:
+        <span class="tok-com"># A strict curve: anything below a B has at least one</span>
+        <span class="tok-com"># high-severity header missing or misconfigured.</span>
+        <span class="tok-kw">if</span> <span class="tok-kw">self</span>.score &gt;= <span class="tok-num">90</span>:
+            <span class="tok-kw">return</span> <span class="tok-str">"A"</span>
+        <span class="tok-kw">if</span> <span class="tok-kw">self</span>.score &gt;= <span class="tok-num">75</span>:
+            <span class="tok-kw">return</span> <span class="tok-str">"B"</span>
+        <span class="tok-kw">if</span> <span class="tok-kw">self</span>.score &gt;= <span class="tok-num">60</span>:
+            <span class="tok-kw">return</span> <span class="tok-str">"C"</span>
+        <span class="tok-kw">if</span> <span class="tok-kw">self</span>.score &gt;= <span class="tok-num">40</span>:
+            <span class="tok-kw">return</span> <span class="tok-str">"D"</span>
+        <span class="tok-kw">return</span> <span class="tok-str">"F"</span></code></pre>
+        </div>
+
+        <p>
+          The grade is a side effect of the running score, never computed from scratch — <code>deduct()</code> is the only thing allowed to touch <code>self.score</code>, which keeps every penalty traceable back to a specific <code>Finding</code> instead of a mystery number.
+        </p>
+
+        <h3>2. Context-Aware Validation</h3>
+        <p>
+          Presence checks alone produce false positives constantly. The most common one: flagging a missing <code>X-Frame-Options</code> on a site that already blocks framing through <code>Content-Security-Policy</code>'s <code>frame-ancestors</code> directive — the modern replacement for XFO. <code>_check_security_headers</code> reads the actual header values before penalizing anything, which also catches headers that are present but neutered, like an <code>HSTS</code> value of <code>max-age=0</code>.
+        </p>
+
+        <div class="article-code-block">
+          <div class="article-code-block__header">
+            <span class="article-code-block__filename">header_scanner.py</span>
+            <span class="article-code-block__lang">Python</span>
+          </div>
+          <pre><code><span class="tok-kw">def</span> <span class="tok-fn">_check_security_headers</span>(headers: <span class="tok-fn">dict</span>[<span class="tok-fn">str</span>, <span class="tok-fn">str</span>], report: AuditReport) -&gt; <span class="tok-kw">None</span>:
+    csp = headers.get(<span class="tok-str">"content-security-policy"</span>, <span class="tok-str">""</span>)
+    xfo = headers.get(<span class="tok-str">"x-frame-options"</span>, <span class="tok-str">""</span>).lower()
+
+    <span class="tok-com"># A missing X-Frame-Options isn't automatically a clickjacking hole —</span>
+    <span class="tok-com"># CSP's frame-ancestors directive supersedes it and is the modern</span>
+    <span class="tok-com"># standard. Flagging both would double-penalize a correctly</span>
+    <span class="tok-com"># configured site.</span>
+    <span class="tok-kw">if</span> <span class="tok-kw">not</span> xfo <span class="tok-kw">and</span> <span class="tok-str">"frame-ancestors"</span> <span class="tok-kw">not</span> <span class="tok-kw">in</span> csp:
+        report.deduct(<span class="tok-num">15</span>, <span class="tok-str">"No clickjacking protection: missing X-Frame-Options "</span>
+                           <span class="tok-str">"and no CSP frame-ancestors directive"</span>)
+    <span class="tok-kw">elif</span> xfo <span class="tok-kw">and</span> xfo <span class="tok-kw">not</span> <span class="tok-kw">in</span> (<span class="tok-str">"deny"</span>, <span class="tok-str">"sameorigin"</span>):
+        report.deduct(<span class="tok-num">5</span>, <span class="tok-fn">f</span><span class="tok-str">"X-Frame-Options set to unrecognized value '{xfo}'"</span>)
+
+    hsts = headers.get(<span class="tok-str">"strict-transport-security"</span>, <span class="tok-str">""</span>)
+    <span class="tok-kw">if</span> <span class="tok-kw">not</span> hsts:
+        report.deduct(<span class="tok-num">20</span>, <span class="tok-str">"Strict-Transport-Security header absent"</span>)
+    <span class="tok-kw">elif</span> <span class="tok-str">"max-age=0"</span> <span class="tok-kw">in</span> hsts.replace(<span class="tok-str">" "</span>, <span class="tok-str">""</span>):
+        <span class="tok-com"># Present but neutered — this actively tells browsers to stop</span>
+        <span class="tok-com"># enforcing HTTPS, arguably worse than no header at all.</span>
+        report.deduct(<span class="tok-num">20</span>, <span class="tok-str">"HSTS max-age=0 disables enforcement entirely"</span>)
+
+    nosniff = headers.get(<span class="tok-str">"x-content-type-options"</span>, <span class="tok-str">""</span>).lower()
+    <span class="tok-kw">if</span> nosniff != <span class="tok-str">"nosniff"</span>:
+        <span class="tok-com"># Any value other than the literal string 'nosniff' is ignored</span>
+        <span class="tok-com"># by browsers — a typo here silently reopens MIME-sniffing.</span>
+        report.deduct(<span class="tok-num">15</span>, <span class="tok-str">"X-Content-Type-Options missing or invalid"</span>)</code></pre>
+        </div>
+
+        <p>
+          This is the difference between a linter and an auditor. A linter checks that a key exists; an auditor checks whether the value the key holds actually does anything. <code>max-age=0</code> and a missing header produce the same real-world outcome, so they get the same penalty — but only one of them would be caught by a tool that just checks <code>if header in response</code>.
+        </p>
+
+        <h3>3. Fingerprinting &amp; Information Disclosure</h3>
+        <p>
+          The second half of the scan has nothing to do with browser enforcement and everything to do with what the server volunteers about itself. <code>Server</code>, <code>X-Powered-By</code>, and <code>X-AspNet-Version</code> are the usual offenders — none of them are required by the HTTP spec, they're just defaults most frameworks ship with and most teams never strip before going to production.
+        </p>
+
+        <div class="article-code-block">
+          <div class="article-code-block__header">
+            <span class="article-code-block__filename">header_scanner.py</span>
+            <span class="article-code-block__lang">Python</span>
+          </div>
+          <pre><code><span class="tok-com"># None of these are required by HTTP — they're framework defaults</span>
+<span class="tok-com"># most teams forget to strip before shipping to production.</span>
+FINGERPRINT_HEADERS = (
+    <span class="tok-str">"server"</span>, <span class="tok-str">"x-powered-by"</span>, <span class="tok-str">"x-aspnet-version"</span>, <span class="tok-str">"x-aspnetmvc-version"</span>,
+)
+
+
+<span class="tok-kw">def</span> <span class="tok-fn">_check_leaks</span>(headers: <span class="tok-fn">dict</span>[<span class="tok-fn">str</span>, <span class="tok-fn">str</span>], report: AuditReport) -&gt; <span class="tok-kw">None</span>:
+    <span class="tok-kw">for</span> name <span class="tok-kw">in</span> FINGERPRINT_HEADERS:
+        value = headers.get(name)
+        <span class="tok-kw">if</span> <span class="tok-kw">not</span> value:
+            <span class="tok-kw">continue</span>
+
+        <span class="tok-com"># A bare "nginx" is low-risk; a full version string is a</span>
+        <span class="tok-com"># targeted CVE lookup away from a working exploit.</span>
+        leaks_version = <span class="tok-fn">any</span>(char.isdigit() <span class="tok-kw">for</span> char <span class="tok-kw">in</span> value)
+        severity = <span class="tok-num">5</span> <span class="tok-kw">if</span> leaks_version <span class="tok-kw">else</span> <span class="tok-num">2</span>
+
+        report.deduct(severity, <span class="tok-fn">f</span><span class="tok-str">"'{name}' header discloses: {value!r}"</span>)</code></pre>
+        </div>
+
+        <p>
+          The version check is deliberately cheap — a single <code>any(char.isdigit() ...)</code> instead of a regex against a CVE database — because the goal here isn't to identify the exact vulnerable build. It's to flag that the server is willing to tell you, so a human (or a follow-up tool further down the Reconnaissance Suite) can go look.
+        </p>
+
+        <h2>Seeing It Run</h2>
+        <p>
+          In practice the scanner is run against two hosts at once to make the grading curve legible — a hardened target next to one that's shipping defaults. <code>github.com</code> comes back close to a clean sheet on defensive headers; <code>example.com</code>, which exists purely as an IANA placeholder with no hardening applied, comes back with almost every weighted header missing.
+        </p>
+
+        <figure class="article-figure">
+          <!-- TODO: Replace with terminal screenshot -->
+          <div class="article-figure__placeholder">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <rect x="2" y="4" width="20" height="16" rx="2" stroke="currentColor" stroke-width="1.5"/>
+              <path d="M6 9L9.5 12L6 15" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M12 15H17" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+            </svg>
+            <span class="article-figure__placeholder-text">Terminal screenshot placeholder — 16:9</span>
+          </div>
+          <figcaption>Running header_scanner.py against github.com and example.com</figcaption>
+        </figure>
+
+        <h2>Remediation: Closing the Gaps It Finds</h2>
+        <p>
+          Every finding the scanner raises maps to a config change that takes minutes, not a sprint. On Nginx, the defensive headers and the version banner are fixed in the same file:
+        </p>
+
+        <div class="article-code-block">
+          <div class="article-code-block__header">
+            <span class="article-code-block__filename">/etc/nginx/conf.d/security-headers.conf</span>
+            <span class="article-code-block__lang">Nginx</span>
+          </div>
+          <pre><code><span class="tok-com"># Defensive headers — matches every entry in SECURITY_HEADERS</span>
+add_header Content-Security-Policy <span class="tok-str">"default-src 'self'; frame-ancestors 'none'"</span> always;
+add_header Strict-Transport-Security <span class="tok-str">"max-age=63072000; includeSubDomains; preload"</span> always;
+add_header X-Frame-Options <span class="tok-str">"DENY"</span> always;
+add_header X-Content-Type-Options <span class="tok-str">"nosniff"</span> always;
+add_header Referrer-Policy <span class="tok-str">"strict-origin-when-cross-origin"</span> always;
+add_header Permissions-Policy <span class="tok-str">"geolocation=(), microphone=(), camera=()"</span> always;
+
+<span class="tok-com"># Strip the version banner — "nginx" alone leaks far less than</span>
+<span class="tok-com"># the default "nginx/1.18.0 (Ubuntu)"</span>
+server_tokens off;</code></pre>
+        </div>
+
+        <p>
+          Sitting behind Cloudflare adds one more layer worth using: a <strong>Transform Rule</strong> (under Rules → Transform Rules → Modify Response Header) that removes or rewrites <code>Server</code> and <code>X-Powered-By</code> at the edge, before the response ever reaches the client — useful when you don't control the origin config directly, or want the banner stripped even if a future deploy reintroduces it.
+        </p>
+
+        <!-- Repository CTA -->
+        <div class="article-cta-card">
+          <span class="cta-badge">Part 1 of 4 — Security Reconnaissance Suite</span>
+          <h3>header_scanner.py — Now on GitHub</h3>
+          <p>Full source, no dependencies beyond the standard library and <code>requests</code>. Clone it, point it at a host, and read the grade yourself.</p>
+          <div class="cta-actions">
+            <a href="https://github.com/Artem-Kysylov/headers_scanner" target="_blank" rel="noopener noreferrer" class="btn btn--primary">
+              View Source on GitHub
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <path d="M3 7H11M11 7L7.5 3.5M11 7L7.5 10.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </a>
+          </div>
+        </div>
+
+        <!-- Series Navigation -->
+        <div class="series-nav">
+          <p class="series-nav__title">Security Reconnaissance Suite — 4-Part Series</p>
+          <ul class="series-nav__list">
+            <li class="series-nav__item series-nav__item--active">
+              <span class="series-nav__label"><span class="series-nav__index">01</span>HTTP Security Headers Analyzer</span>
+              <span class="badge badge--active"><span class="badge__dot"></span>Reading now</span>
+            </li>
+            <li class="series-nav__item">
+              <span class="series-nav__label"><span class="series-nav__index">02</span>Sensitive Files &amp; Config Checker</span>
+              <span class="badge badge--building"><span class="badge__dot"></span>Coming soon</span>
+            </li>
+            <li class="series-nav__item">
+              <span class="series-nav__label"><span class="series-nav__index">03</span>Hybrid Subdomain Enumerator</span>
+              <span class="badge badge--building"><span class="badge__dot"></span>Coming soon</span>
+            </li>
+            <li class="series-nav__item">
+              <span class="series-nav__label"><span class="series-nav__index">04</span>Multi-Threaded Port &amp; Banner Scanner</span>
+              <span class="badge badge--building"><span class="badge__dot"></span>Coming soon</span>
+            </li>
+          </ul>
+        </div>
+
+      </article>
+
+      <!-- Social CTA -->
+      <div class="article-cta-card">
+        <span class="cta-badge">Follow the Journey</span>
+        <h3>Building in Public on YouTube &amp; X</h3>
+        <p>I document my transition to cybersecurity, Python automation, and retro devlogs in real-time. Join the community!</p>
+        <div class="cta-actions">
+          <a href="https://www.youtube.com/@Artem_AlwaysBuilding" target="_blank" rel="noopener noreferrer" class="btn btn--primary">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M23.495 6.205a3.007 3.007 0 0 0-2.088-2.088c-1.87-.501-9.396-.501-9.396-.501s-7.507-.01-9.396.501A3.007 3.007 0 0 0 .527 6.205a31.247 31.247 0 0 0-.522 5.805 31.247 31.247 0 0 0 .522 5.783 3.007 3.007 0 0 0 2.088 2.088c1.868.502 9.396.502 9.396.502s7.506 0 9.396-.502a3.007 3.007 0 0 0 2.088-2.088 31.247 31.247 0 0 0 .5-5.783 31.247 31.247 0 0 0-.5-5.805zM9.609 15.601V8.408l6.264 3.602z"/>
+            </svg>
+            Subscribe on YouTube
+          </a>
+          <a href="https://x.com/tabXport" target="_blank" rel="noopener noreferrer" class="btn btn--ghost">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.741l7.73-8.835L1.254 2.25H8.08l4.265 5.638 5.9-5.638Zm-1.161 17.52h1.833L7.084 4.126H5.117L17.083 19.77Z"/>
+            </svg>
+            Follow on X
+          </a>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+<!-- ============================================================
+       FOOTER
+       ============================================================ -->
+  <footer class="site-footer" role="contentinfo">
+    <div class="container">
+
+      <div class="footer-left">
+        <img src="/logo/logo.svg" alt="Syntax Labs" class="footer-logo" width="171" height="19" />
+        <span class="footer-copy">© 2026 Syntax Labs. All rights reserved.</span>
+        <a href="https://github.com/Artem-Kysylov/syntax-labs-vanilla-template" class="footer-template-link" target="_blank" rel="noopener noreferrer">Built with Syntax Vanilla Template</a>
+      </div>
+
+      <nav class="footer-nav" aria-label="Footer navigation">
+        <a href="/privacy.html" class="footer-link">Privacy Policy</a>
+        <a href="/terms.html" class="footer-link">Terms of Use</a>
+        <a href="mailto:hello@syntaxlabsapp.com" class="footer-link">Contact</a>
+      </nav>
+
+    </div>
+  </footer>
+
+</body>
+</html>

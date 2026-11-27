@@ -1986,3 +1986,209 @@ button { cursor: pointer; font-family: inherit; }
     justify-content: center;
   }
 }
+
+.reveal-delay-5 { transition-delay: 0.5s; }
+
+/* ============================================================
+   ARTICLE CODE BLOCKS
+   ============================================================ */
+
+.article-body h3 {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--text-heading);
+  margin: 32px 0 12px;
+}
+
+.article-body code {
+  font-family: 'SF Mono', 'Fira Code', Menlo, Consolas, monospace;
+  font-size: 0.9em;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.15em 0.4em;
+  color: var(--text-heading);
+}
+
+.article-code-block {
+  margin: 32px 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--bg-elevated);
+  overflow: hidden;
+}
+
+.article-code-block__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 20px;
+  border-bottom: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.article-code-block__filename {
+  font-family: 'SF Mono', Menlo, Consolas, monospace;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.article-code-block__lang {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.article-code-block pre {
+  margin: 0;
+  padding: 20px 24px;
+  overflow-x: auto;
+}
+
+.article-code-block code {
+  font-family: 'SF Mono', 'Fira Code', Menlo, Consolas, monospace;
+  font-size: 0.85rem;
+  line-height: 1.7;
+  color: #d4d4d8;
+  background: none;
+  border: none;
+  padding: 0;
+  white-space: pre;
+}
+
+.tok-kw  { color: #38bdf8; }
+.tok-str { color: #8dc63f; }
+.tok-com { color: var(--text-muted); font-style: italic; }
+.tok-num { color: #fbbf24; }
+.tok-fn  { color: #ffffff; font-weight: 600; }
+
+/* ============================================================
+   ARTICLE FIGURE PLACEHOLDER
+   ============================================================ */
+
+.article-figure {
+  margin: 40px 0;
+}
+
+.article-figure__placeholder {
+  aspect-ratio: 16 / 9;
+  border: 1px dashed var(--border-hover);
+  border-radius: var(--radius-lg);
+  background: rgba(255, 255, 255, 0.015);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 24px;
+  text-align: center;
+}
+
+.article-figure__placeholder svg {
+  color: var(--text-muted);
+  opacity: 0.5;
+}
+
+.article-figure__placeholder-text {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.article-figure figcaption {
+  margin-top: 12px;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  text-align: center;
+}
+
+/* ============================================================
+   SERIES NAVIGATION
+   ============================================================ */
+
+.series-nav {
+  margin: 56px 0 16px;
+  padding: 28px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.series-nav__title {
+  font-size: var(--text-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  margin-bottom: 20px;
+}
+
+.series-nav__list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+}
+
+.series-nav__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 16px;
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+}
+
+.series-nav__item--active {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: var(--border-hover);
+}
+
+.series-nav__label {
+  font-size: var(--text-sm);
+  color: var(--text-base);
+  font-weight: 500;
+}
+
+.series-nav__index {
+  color: var(--text-muted);
+  font-weight: 400;
+  margin-right: 8px;
+}
+
+.series-nav__item--active .series-nav__label {
+  color: var(--text-bright);
+  font-weight: 600;
+}
+
+@media (max-width: 768px) {
+  .article-code-block pre {
+    padding: 16px 18px;
+  }
+
+  .article-code-block code {
+    font-size: 0.8rem;
+  }
+
+  .series-nav {
+    padding: 20px;
+  }
+
+  .series-nav__item {
+    padding: 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .series-nav__item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+}
